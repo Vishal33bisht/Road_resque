@@ -8,13 +8,12 @@ from typing import List
 import models,schemas,auth
 import math
 
-#models.Base.metadata.drop_all(bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
 app=FastAPI(title="Roadside resque API")
 
 origins = [
-    "http://localhost:5173", # React Frontend
+    "http://localhost:5173", 
     "http://127.0.0.1:5173",
 ]
 
@@ -68,9 +67,43 @@ def create_request(request: schemas.RequestCreate,
     db.refresh(new_request)
     return new_request
 
-@app.get("/my-requests",response_model=List[schemas.RequestResponse])
-def get_my_requests(current_user: models.User=Depends(get_current_user),db:Session=Depends(get_db)):
-    return db.query(models.ServiceRequest).filter(models.ServiceRequest.customer_id == current_user.id).all()
+@app.get("/my-requests")
+def get_my_requests(current_user: models.User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    
+    requests = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.customer_id == current_user.id
+    ).order_by(models.ServiceRequest.created_at.desc()).all()
+    
+    result = []
+    for req in requests:
+        req_data = {
+            "id": req.id,
+            "customer_id": req.customer_id,
+            "mechanic_id": req.mechanic_id,
+            "vehicle_type": req.vehicle_type,
+            "problem_desc": req.problem_desc,
+            "lat": req.lat,
+            "lng": req.lng,
+            "status": req.status,
+            "created_at": req.created_at,
+            "mechanic": None
+        }
+        
+        # Add mechanic info if assigned
+        if req.mechanic_id:
+            mechanic = db.query(models.User).filter(models.User.id == req.mechanic_id).first()
+            if mechanic:
+                req_data["mechanic"] = {
+                    "id": mechanic.id,
+                    "name": mechanic.name,
+                    "phone": mechanic.phone
+                }
+        
+        result.append(req_data)
+    
+    return result
+
 @app.post("/register", response_model=schemas.UserResponse)
 def register(user: schemas.UserCreate, db: Session=Depends(get_db)):
     db_user=db.query(models.User).filter(models.User.email==user.email).first()
@@ -103,12 +136,41 @@ def login(form_data : OAuth2PasswordRequestForm=Depends(),db:Session=Depends(get
             headers={"WWW-Authenticate": "Bearer"},
             )
     access_token=auth.create_access_token(
-        data={"sub": str(user.id), "role":user.role}
+        data={"sub": str(user.id), "role":user.role,"name": user.name}
     )
     
     return {"access_token": access_token ,"token_type":"bearer", "role":user.role}
 
+@app.post("/requests/{request_id}/cancel")
+def cancel_request(request_id:int ,current_user:models.User=Depends(get_current_user),db: Session=Depends(get_db)):
+    req=db.query (models.ServiceRequest).filter(models.ServiceRequest.id==request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.customer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this request")
+    if req.status != "Pending":
+        raise HTTPException(status_code=400, detail="Cannot cancel a request that is already processed")
+    req.status="Cancelled"
+    db.commit()
+    return{"status":"Cancelled"}
 
+@app.post("/requests/{request_id}/reject")
+def reject_request(request_id:int,current_user:models.User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if current_user.role!="mechanic":
+        raise HTTPException(status_code=403, detail="not authorized")
+    
+    req=db.query(models.ServiceRequest).filter(models.ServiceRequest.id==request.id.first())
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    req.status = "Rejected"
+    current_user.is_available=True
+    
+    db.commit()
+    return {"status" : "Rejected"}
+    
+    
 @app.post("/mechanic/availability")
 def toogle_availability(lat:float,lng:float,
         current_user:models.User=Depends(get_current_user),
@@ -177,3 +239,139 @@ def accept_request(request_id: int,
      
      db.commit()
      return {"status":"assigned"}
+
+@app.get("/requests/{request_id}", response_model=schemas.RequestWithMechanic)
+def get_request(request_id: int,
+                current_user: models.User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    
+    req = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.id == request_id
+    ).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.customer_id != current_user.id and req.mechanic_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        response = {
+        "id": req.id,
+        "customer_id": req.customer_id,
+        "mechanic_id": req.mechanic_id,
+        "vehicle_type": req.vehicle_type,
+        "problem_desc": req.problem_desc,
+        "lat": req.lat,
+        "lng": req.lng,
+        "status": req.status,
+        "created_at": req.created_at,
+        "mechanic": None
+    }
+    if req.mechanic_id:
+        mechanic = db.query(models.User).filter(models.User.id == req.mechanic_id).first()
+        if mechanic:
+            response["mechanic"] = {
+                "id": mechanic.id,
+                "name": mechanic.name,
+                "phone": mechanic.phone
+            }
+    
+    return response
+@app.post("/requests/{request_id}/start")
+def start_trip(request_id: int,
+               current_user: models.User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    
+    if current_user.role != "mechanic":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    req = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.id == request_id
+    ).first()
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+        if req.mechanic_id != current_user.id:
+         raise HTTPException(status_code=403, detail="This job is not assigned to you")
+    
+    if req.status != "Accepted":
+        raise HTTPException(status_code=400, detail=f"Cannot start trip. Current status: {req.status}")
+    
+    req.status = "En Route"
+    db.commit()
+    
+    return {"status": "en_route", "message": "You are now en route to the customer"}
+
+@app.post("/requests/{request_id}/complete")
+def complete_job(request_id: int,
+                 current_user: models.User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    
+    if current_user.role != "mechanic":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    req = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.id == request_id
+    ).first()
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    if req.mechanic_id != current_user.id:
+        raise HTTPException(status_code=403, detail="This job is not assigned to you")
+    
+    if req.status not in ["Accepted", "En Route"]:
+        raise HTTPException(status_code=400, detail=f"Cannot complete. Current status: {req.status}")
+    
+    req.status = "Completed"
+    current_user.is_available = True  # Mechanic is free again
+    db.commit()
+    
+    return {"status": "completed", "message": "Job completed successfully!"}
+
+@app.post("/requests/{request_id}/cancel")
+def cancel_request(request_id: int,
+                   current_user: models.User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    
+    req = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.id == request_id
+    ).first()
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Only the customer who created the request can cancel
+    if req.customer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this request")
+    
+@app.get("/mechanic/active-job")
+def get_active_job(current_user: models.User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    
+    if current_user.role != "mechanic":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Find active job (Accepted or En Route)
+    active_job = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.mechanic_id == current_user.id,
+        models.ServiceRequest.status.in_(["Accepted", "En Route"])
+    ).first()
+    
+    if not active_job:
+        return None
+    
+    # Get customer info
+    customer = db.query(models.User).filter(models.User.id == active_job.customer_id).first()
+    
+    return {
+        "id": active_job.id,
+        "vehicle_type": active_job.vehicle_type,
+        "problem_desc": active_job.problem_desc,
+        "lat": active_job.lat,
+        "lng": active_job.lng,
+        "status": active_job.status,
+        "created_at": active_job.created_at,
+        "customer": {
+            "name": customer.name,
+            "phone": customer.phone
+        } if customer else None
+    }
+

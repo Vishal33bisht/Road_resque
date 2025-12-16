@@ -21,7 +21,9 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold">Roadside Rescue 🚗</h1>
         <div className="flex items-center gap-4">
             <span className="capitalize font-semibold">
+              {user?.name ? `${user.name} (` : ''}
               {user?.role === 'mechanic' ? '🔧 Mechanic' : '👤 Driver'}
+              {user?.name ? ')' : ''}
             </span>
             <button onClick={handleLogout} className="bg-red-500 px-3 py-1 rounded text-sm hover:bg-red-600">
                 Logout

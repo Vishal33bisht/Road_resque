@@ -7,7 +7,15 @@ class RequestCreate(BaseModel):
     problem_desc:str
     lat:float
     lng:float
+
+class MechanicInfo(BaseModel):
+    id: int
+    name: str
+    phone: str
     
+    class Config:
+        from_attributes = True
+
 class RequestResponse(RequestCreate):
     id:int
     customer_id:int
@@ -15,6 +23,9 @@ class RequestResponse(RequestCreate):
     status:str
     created_at:datetime
     
+class RequestWithMechanic(RequestResponse):
+    mechanic: Optional[MechanicInfo] = None
+
 class UserBase(BaseModel):
     name:str
     email:EmailStr
