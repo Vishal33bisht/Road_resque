@@ -3,6 +3,7 @@ import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Map from "../components/Map";
+import { toast } from 'react-hot-toast';
 
 export default function MechanicDashboard() {
     const { user, logout } = useContext(AuthContext);
@@ -55,7 +56,7 @@ navigator.geolocation.getCurrentPosition(
                 if (res.data.is_available) fetchRequests(); 
             } catch (err) {
                 console.error(err);
-                alert("Error updating status");
+                toast.error("Error updating status");
             } finally {
                 setLoading(false);
             }
@@ -64,7 +65,8 @@ navigator.geolocation.getCurrentPosition(
             console.error("Error getting location:", error);
             alert("Unable to retrieve your location. Make sure GPS is enabled.");
             setLoading(false);
-        }
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
 };
 
@@ -74,7 +76,7 @@ navigator.geolocation.getCurrentPosition(
             toast.success("Job Accepted! Head to the location.");
             fetchRequests(); // Refresh immediately
         } catch (err) {
-            alert("Failed: " + (err.response?.data?.detail || "Check Console")); 
+            toast.error("Failed: " + (err.response?.data?.detail || "Check Console")); 
         }
     };
 
@@ -84,7 +86,7 @@ navigator.geolocation.getCurrentPosition(
             await api.post(`/requests/${id}/reject`);
             setRequests(prev => prev.filter(req => req.id !== id));
         } catch (err) {
-            alert("Error declining: " + (err.response?.data?.detail || err.message));
+            toast.error("Error declining: " + (err.response?.data?.detail || err.message));
         }
     };
 
@@ -99,7 +101,7 @@ const completeJob = async () => {
     try {
         await api.post(`/requests/${activeJob.id}/complete`);
 
-        alert("Job Completed!");
+        toast.success("Job Completed Successfully!");
         setActiveJob(null);
         fetchRequests(); // Refresh the list
     } catch (err) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api from '../api';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -18,10 +19,10 @@ export default function Register() {
     setLoading(true);
     try {
       await api.post("/register", formData);
-      alert("Registration successful! Please login.");
+      toast.success("Registration successful! Please login.");
       navigate('/login');
     } catch (error) {
-      alert("Error: " + (error.response?.data?.detail || "Unknown error"));
+      toast.error("Error: " + (error.response?.data?.detail || "Unknown error"));
     } finally {
       setLoading(false);
     }

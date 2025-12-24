@@ -3,6 +3,7 @@ import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Map from "../components/Map";
+import { toast } from 'react-hot-toast';
 
 export default function DriverDashboard() {
     const { user } = useContext(AuthContext);
@@ -63,7 +64,7 @@ export default function DriverDashboard() {
                 setLoadingLoc(false);
                 setLocationError("Unable to retrieve your location. Please try the test button.");
             },
-            { enableHighAccuracy: false, timeout: 15000 }
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
     };
 
@@ -87,12 +88,12 @@ export default function DriverDashboard() {
                 lat: location.lat,
                 lng: location.lng,
             });
-            alert("Help Requested! Waiting for a mechanic...");
+            toast.success("Help Requested! Waiting for a mechanic...");
             setProblem("");
             setLocation({ lat: null, lng: null });
             fetchRequests(); // Refresh list
         } catch (err) {
-            alert("Error submitting: " + (err.response?.data?.detail || err.message));
+            toast.error("Error submitting: " + (err.response?.data?.detail || err.message));
         }
         setSubmitting(false);
     };
@@ -102,9 +103,10 @@ export default function DriverDashboard() {
         if (!confirm("Are you sure you want to cancel this request?")) return;
         try {
             await api.post(`/requests/${id}/cancel`);
+            toast.success("Request cancelled");
             fetchRequests(); // Refresh list to show updated status
         } catch (err) {
-            alert("Error cancelling: " + (err.response?.data?.detail || err.message));
+            toast.error("Error cancelling: " + (err.response?.data?.detail || err.message));
         }
     };
 
