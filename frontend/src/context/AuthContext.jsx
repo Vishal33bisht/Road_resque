@@ -20,8 +20,15 @@ useEffect(()=>{
 
     const login = (token) => {
         localStorage.setItem("token", token);
-        const decoded = jwtDecode(token);
+        try {
+            const decoded = jwtDecode(token);
+            localStorage.setItem("role", decoded.role);
         setUser(decoded);
+    }
+    catch (error) {
+            console.error("Invalid token during login", error);
+            logout();
+        }
     };
     const logout=()=>{
         localStorage.removeItem("token");
