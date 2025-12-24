@@ -20,9 +20,15 @@ function ProtectedRoute({ children, allowedRole }) {
     if (allowedRole && role !== allowedRole) {
         if (role === "mechanic") {
             return <Navigate to="/mechanic-dashboard" />;
-        } else {
+        } else if(role === "user"){
             return <Navigate to="/driver-dashboard" />;
         }
+        else {
+        // If role is missing or unknown, force logout/login
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        return <Navigate to="/login" />;
+    }
     }
 
     return children;

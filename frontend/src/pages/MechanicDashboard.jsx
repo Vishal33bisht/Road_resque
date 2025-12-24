@@ -84,14 +84,21 @@ export default function MechanicDashboard() {
     };
 
     // --- NEW: COMPLETE JOB (Placeholder logic) ---
-    const completeJob = async () => {
-        if(!activeJob) return;
-        if(!confirm("Mark job as complete?")) return;
-        // You would ideally need a backend endpoint for this: api.post(`/requests/${activeJob.id}/complete`)
-        // For now, we'll just clear the local state to simulate it
+const completeJob = async () => {
+    if(!activeJob) return;
+    if(!confirm("Mark job as complete?")) return;
+
+    try {
+        // CALL THE BACKEND
+        await api.post(`/requests/${activeJob.id}/complete`);
+
         alert("Job Completed!");
         setActiveJob(null);
-    };
+        fetchRequests(); // Refresh the list
+    } catch (err) {
+        alert("Error completing job: " + (err.response?.data?.detail || err.message));
+    }
+};
 
     // Helper: Filter out skipped requests
     const visibleRequests = requests.filter(req => !skippedIds.includes(req.id));
