@@ -2,11 +2,12 @@ import { useState, useEffect, useContext } from "react";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
+import Map from "../components/Map";
 
 export default function MechanicDashboard() {
     const { user, logout } = useContext(AuthContext);
     
-    // State
+
     const [requests, setRequests] = useState([]);
     const [activeJob, setActiveJob] = useState(null); // New: Track active job
     const [isAvailable, setIsAvailable] = useState(false);
@@ -15,20 +16,17 @@ export default function MechanicDashboard() {
 
     // Effects
     useEffect(() => {
-        // Poll every 5 seconds
         const interval = setInterval(fetchRequests, 5000);
         return () => clearInterval(interval);
     }, [isAvailable]); // Re-fetch if availability changes
 
-    // --- API & LOGIC ---
 
     const fetchRequests = async () => {
         try {
             // 1. Get nearby requests
             const res = await api.get("/mechanic/requests");
             
-            // 2. Filter logic: 
-            // If we have an accepted job in the list, set it as activeJob
+
             const active = res.data.find(r => r.status === "Accepted");
             const pending = res.data.filter(r => r.status === "Pending");
             
@@ -42,72 +40,79 @@ export default function MechanicDashboard() {
 
     const toggleAvailability = async () => {
         setLoading(true);
-        // Hardcoded NYC for MVP demo (replace with navigator.geolocation later)
-        const lat = 40.7128; 
-        const lng = -74.0060;
-
-        try {
-            const res = await api.post(`/mechanic/availability?lat=${lat}&lng=${lng}`);
-            setIsAvailable(res.data.is_available);
-            if (res.data.is_available) fetchRequests();
-        } catch (err) {
-            alert("Error updating status");
-        }
+        if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
         setLoading(false);
-    };
+        return;
+    }
+navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            try {
+                const res = await api.post(`/mechanic/availability?lat=${lat}&lng=${lng}`);
+                setIsAvailable(res.data.is_available);
+                if (res.data.is_available) fetchRequests(); 
+            } catch (err) {
+                console.error(err);
+                alert("Error updating status");
+            } finally {
+                setLoading(false);
+            }
+        },
+        (error) => {
+            console.error("Error getting location:", error);
+            alert("Unable to retrieve your location. Make sure GPS is enabled.");
+            setLoading(false);
+        }
+    );
+};
 
     const acceptRequest = async (id) => {
         try {
             await api.post(`/requests/${id}/accept`);
-            alert("Job Accepted! Head to the location.");
+            toast.success("Job Accepted! Head to the location.");
             fetchRequests(); // Refresh immediately
         } catch (err) {
             alert("Failed: " + (err.response?.data?.detail || "Check Console")); 
         }
     };
 
-    // --- NEW: REJECT REQUEST ---
     const rejectRequest = async (id) => {
         if(!confirm("Decline this job?")) return;
         try {
-            // Calls the backend endpoint we added
             await api.post(`/requests/${id}/reject`);
-            // Remove from local list immediately for UI responsiveness
             setRequests(prev => prev.filter(req => req.id !== id));
         } catch (err) {
             alert("Error declining: " + (err.response?.data?.detail || err.message));
         }
     };
 
-    // --- NEW: SKIP (Client-side only hide) ---
     const skipRequest = (id) => {
         setSkippedIds(prev => [...prev, id]);
     };
 
-    // --- NEW: COMPLETE JOB (Placeholder logic) ---
 const completeJob = async () => {
     if(!activeJob) return;
     if(!confirm("Mark job as complete?")) return;
 
     try {
-        // CALL THE BACKEND
         await api.post(`/requests/${activeJob.id}/complete`);
 
         alert("Job Completed!");
         setActiveJob(null);
         fetchRequests(); // Refresh the list
     } catch (err) {
-        alert("Error completing job: " + (err.response?.data?.detail || err.message));
+        toast.error("Error completing job: " + (err.response?.data?.detail || err.message));
     }
 };
 
-    // Helper: Filter out skipped requests
+
     const visibleRequests = requests.filter(req => !skippedIds.includes(req.id));
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
-            
-            {/* Simple Navbar Replacement */}
+
             <Navbar className="bg-white shadow-sm p-4 mb-6">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
                     <span className="font-bold text-xl text-blue-600">RoadResque Partner</span>
@@ -206,6 +211,10 @@ const completeJob = async () => {
                             🗺️ Open in Google Maps
                         </a>
 
+                        <div className="mb-4 text-gray-900"> {/* Added text-gray-900 to reset color inside the map */}
+                             <Map lat={activeJob.lat} lng={activeJob.lng} />
+                        </div>
+
                         {/* Complete Job Button */}
                         <button
                             onClick={completeJob}
@@ -272,8 +281,7 @@ const completeJob = async () => {
                                             >
                                                 ACCEPT
                                             </button>
-                                            
-                                            {/* REJECT / SKIP BUTTON */}
+                                         
                                             <button
                                                 onClick={() => rejectRequest(req.id)} 
                                                 className="py-3 bg-red-100 hover:bg-red-200 text-red-600 font-medium rounded-xl transition-all"
@@ -281,9 +289,7 @@ const completeJob = async () => {
                                                 DECLINE
                                             </button>
                                         </div>
-                                        {/* Optional "Skip" button if you want to keep it separate 
-                                        <button onClick={() => skipRequest(req.id)} className="w-full mt-2 text-xs text-gray-400">Skip for now</button> 
-                                        */}
+                                       
                                     </div>
                                 ))}
                             </div>

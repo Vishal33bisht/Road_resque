@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import DriverDashboard from "./pages/DriverDashboard";
 import MechanicDashboard from "./pages/MechanicDashboard";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { Toaster } from 'react-hot-toast';
 
 // Protected Route Component
 function ProtectedRoute({ children, allowedRole }) {
@@ -53,6 +54,7 @@ function PublicRoute({ children }) {
 function App() {
     return (
         <AuthProvider>
+            <Toaster position="top-center" />
             <Routes>
                 {/* Default - Redirect to login */}
                 <Route path="/" element={<Navigate to="/login" />} />

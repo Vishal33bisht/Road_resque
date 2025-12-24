@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
+import Map from "../components/Map";
 
 export default function DriverDashboard() {
     const { user } = useContext(AuthContext);
@@ -271,7 +272,7 @@ export default function DriverDashboard() {
                                             rel="noopener noreferrer"
                                             className="text-blue-600 hover:underline"
                                         >
-                                            View Map →
+                                            <Map lat={location.lat} lng={location.lng} />
                                         </a>
                                     </div>
                                 )}
