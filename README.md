@@ -2,7 +2,7 @@ Markdown
 
 # 🚑 Roadside Resque
 
-**Roadside Rescue** is a full-stack web application designed to connect stranded drivers with nearby mechanics in real-time. It features role-based dashboards, geolocation tracking, and instant service requests to ensure help arrives quickly.
+**Roadside Resque** is a full-stack web application designed to connect stranded drivers with nearby mechanics in real-time. It features role-based dashboards, geolocation tracking, and instant service requests to ensure help arrives quickly.
 
 ![Project Status](https://img.shields.io/badge/Status-Active-green)
 ![License](https://img.shields.io/badge/License-MIT-blue)
