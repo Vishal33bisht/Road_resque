@@ -1,9 +1,12 @@
+import Button from "../components/Button";
+import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { useState, useEffect, useContext } from "react";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Map from "../components/Map";
 import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function DriverDashboard() {
     const { user } = useContext(AuthContext);
@@ -152,7 +155,15 @@ export default function DriverDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
-            
+            <Button 
+    type="submit" 
+    isLoading={submitting} 
+    variant="primary"
+    className="w-full py-3 text-lg"
+>
+    <PaperAirplaneIcon className="w-5 h-5 mr-2" />
+    Request Help Now
+</Button>
             {/* Navbar Replacement */}
             <Navbar className="bg-white shadow-sm p-4 mb-6">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
@@ -334,6 +345,7 @@ export default function DriverDashboard() {
                                     <LoadingSpinner size="large" />
                                     <p className="mt-2 text-gray-400">Loading requests...</p>
                                 </div>
+                                
                             ) : (activeTab === "active" ? activeRequests : historyRequests).length === 0 ? (
                                 <div className="py-12 text-center">
                                     <div className="text-5xl mb-3">

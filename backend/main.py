@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status,Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -7,6 +7,10 @@ import jwt
 from typing import List
 import models, schemas, auth
 import math
+import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -14,12 +18,12 @@ app = FastAPI(title="Roadside Rescue API")
 
 origins = [
     "http://localhost:5173", 
-    "http://127.0.0.1:5173",
+    "http://192.168.43.59:5173",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +31,20 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -62,7 +80,9 @@ def test_db(db: Session = Depends(get_db)):
 
 
 @app.post("/register", response_model=schemas.UserResponse)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")  # Only 5 registrations per minute per IP
+def register(request:Request,user: schemas.UserCreate, db: Session = Depends(get_db)):
+    print(f"📨 Received registration data: {user.dict()}")
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -207,9 +227,9 @@ def get_nearby_requests(current_user: models.User = Depends(get_current_user),
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    print(f"--- DEBUG: Mechanic {current_user.name} ---")
-    print(f"Mechanic Location: {current_user.latitude}, {current_user.longitude}")
-
+    logger.info(f"Mechanic {current_user.name} requesting nearby jobs")
+    logger.debug(f"Mechanic Location: {current_user.latitude}, {current_user.longitude}")
+    
     pending_requests = db.query(models.ServiceRequest).filter(models.ServiceRequest.status == "Pending").all()
     print(f"Total Pending Requests in DB: {len(pending_requests)}")
     
