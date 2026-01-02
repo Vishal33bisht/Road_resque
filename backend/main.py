@@ -11,6 +11,10 @@ import logging
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -20,6 +24,8 @@ origins = [
     "http://localhost:5173", 
     "http://192.168.43.59:5173",
 ]
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+origins = [origin.strip() for origin in CORS_ORIGINS.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,7 +88,7 @@ def test_db(db: Session = Depends(get_db)):
 @app.post("/register", response_model=schemas.UserResponse)
 @limiter.limit("5/minute")  # Only 5 registrations per minute per IP
 def register(request:Request,user: schemas.UserCreate, db: Session = Depends(get_db)):
-    print(f"📨 Received registration data: {user.dict()}")
+    logger.info(f"New registration attempt: {user.email}")
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -105,7 +111,8 @@ def register(request:Request,user: schemas.UserCreate, db: Session = Depends(get
 
 
 @app.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request,form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -207,6 +214,25 @@ def reject_request(request_id: int, current_user: models.User = Depends(get_curr
     db.commit()
     return {"status": "Rejected"}
 
+@app.post("/requests/{request_id}/rate")
+def rate_service(request_id: int, rating: int, feedback: str = "",
+                 current_user: models.User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    if rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    
+    req = db.query(models.ServiceRequest).filter(models.ServiceRequest.id == request_id).first()
+    if not req or req.customer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if req.status != "Completed":
+        raise HTTPException(status_code=400, detail="Can only rate completed requests")
+    
+    req.rating = rating
+    req.feedback = feedback
+    db.commit()
+    return {"message": "Rating submitted successfully"}
+
 
 @app.post("/mechanic/availability")
 def toggle_availability(lat: float, lng: float,
@@ -231,21 +257,21 @@ def get_nearby_requests(current_user: models.User = Depends(get_current_user),
     logger.debug(f"Mechanic Location: {current_user.latitude}, {current_user.longitude}")
     
     pending_requests = db.query(models.ServiceRequest).filter(models.ServiceRequest.status == "Pending").all()
-    print(f"Total Pending Requests in DB: {len(pending_requests)}")
+    logger.info(f"Total Pending Requests in DB: {len(pending_requests)}")
     
     nearby = []
     for req in pending_requests:
         if current_user.latitude is not None and current_user.longitude is not None:
             dist = calculate_distance(current_user.latitude, current_user.longitude, req.lat, req.lng)
-            print(f" -> Request {req.id} Distance: {dist:.2f} km")
+            logger.debug(f"Request {req.id} Distance: {dist:.2f} km")
             
-            if dist < 20000:
+            if dist <50:
                 nearby.append(req)
         else:
-            print(" -> Skipping request: Mechanic has no location set.")
+            logger.debug("Skipping request: Mechanic has no location set.")
 
-    print(f"Returning {len(nearby)} requests")
-    print("-----------------------------------")
+    logger.info(f"Returning {len(nearby)} requests")
+
     
     return nearby
 
@@ -267,7 +293,6 @@ def accept_request(request_id: int,
     
     db.commit()
     return {"status": "assigned"}
-
 
 @app.get("/requests/{request_id}", response_model=schemas.RequestWithMechanic)
 def get_request(request_id: int,

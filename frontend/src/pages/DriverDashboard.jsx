@@ -1,436 +1,476 @@
-import Button from "../components/Button";
-import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
-import { useState, useEffect, useContext } from "react";
-import api from "../api";
-import { AuthContext } from "../context/AuthContext";
-import Navbar from "../components/Navbar";
-import Map from "../components/Map";
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Car, Bike, Truck, MapPin, Clock, Phone, 
+  CheckCircle, XCircle, Loader, Navigation,
+  AlertCircle, LogOut, History, Plus
+} from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from "framer-motion";
+import api from '../api';
+import './DriverDashboard.css';
+import 'leaflet/dist/leaflet.css';
 
-export default function DriverDashboard() {
-    const { user } = useContext(AuthContext);
+const DriverDashboard = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
+  const [showNewRequest, setShowNewRequest] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
+  
+  // New Request Form State
+  const [vehicleType, setVehicleType] = useState('car');
+  const [problemDesc, setProblemDesc] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // --- STATE ---
-    const [vehicle, setVehicle] = useState("Car");
-    const [problem, setProblem] = useState("");
-    const [location, setLocation] = useState({ lat: null, lng: null });
+  useEffect(() => {
+    fetchRequests();
+    getUserLocation();
     
-    // UI States
-    const [loadingLoc, setLoadingLoc] = useState(false);
-    const [locationError, setLocationError] = useState(null);
-    const [submitting, setSubmitting] = useState(false);
-    const [activeTab, setActiveTab] = useState("active");
-    const [loading, setLoading] = useState(false);
+    // Poll for updates every 5 seconds
+    const interval = setInterval(fetchRequests, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          toast.error('Please enable location services');
+        }
+      );
+    }
+  };
+
+  const fetchRequests = async () => {
+    try {
+      const response = await api.get('/my-requests');
+      setRequests(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRequest = async (e) => {
+    e.preventDefault();
     
-    // Data
-    const [myRequests, setMyRequests] = useState([]);
+    if (!userLocation) {
+      toast.error('Waiting for location...');
+      return;
+    }
 
-    // --- EFFECTS ---
-    useEffect(() => {
-        fetchRequests();
-    }, []);
+    if (problemDesc.length < 5) {
+      toast.error('Please describe your problem in detail');
+      return;
+    }
 
-    // --- LOGIC ---
+    setIsSubmitting(true);
 
-    const fetchRequests = async () => {
-        setLoading(true);
-        try {
-            const res = await api.get("/my-requests");
-            // Sort by newest first
-            const sorted = res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            setMyRequests(sorted);
-        } catch (err) {
-            console.error("Failed to fetch requests", err);
-        }
-        setLoading(false);
+    try {
+      await api.post('/requests', {
+        vehicle_type: vehicleType,
+        problem_desc: problemDesc,
+        lat: userLocation.lat,
+        lng: userLocation.lng
+      });
+
+      toast.success('🚨 Help request sent! Finding nearby mechanics...');
+      setShowNewRequest(false);
+      setProblemDesc('');
+      fetchRequests();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to send request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to cancel this request?')) return;
+
+    try {
+      await api.post(`/requests/${requestId}/cancel`);
+      toast.success('Request cancelled');
+      fetchRequests();
+    } catch (error) {
+      toast.error('Failed to cancel request');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    navigate('/login');
+    toast.success('Logged out successfully');
+  };
+
+  const activeRequests = requests.filter(r => 
+    ['Pending', 'Accepted', 'En Route'].includes(r.status)
+  );
+  
+  const historyRequests = requests.filter(r => 
+    ['Completed', 'Cancelled', 'Rejected'].includes(r.status)
+  );
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'Pending': 'status-pending',
+      'Accepted': 'status-accepted',
+      'En Route': 'status-enroute',
+      'Completed': 'status-completed',
+      'Cancelled': 'status-cancelled',
+      'Rejected': 'status-rejected'
     };
+    return colors[status] || 'status-pending';
+  };
 
-    const getLocation = () => {
-        if (!navigator.geolocation) {
-            setLocationError("Geolocation is not supported by your browser");
-            return;
-        }
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'Pending': return <Clock className="w-5 h-5" />;
+      case 'Accepted': return <CheckCircle className="w-5 h-5" />;
+      case 'En Route': return <Navigation className="w-5 h-5" />;
+      case 'Completed': return <CheckCircle className="w-5 h-5" />;
+      case 'Cancelled': return <XCircle className="w-5 h-5" />;
+      case 'Rejected': return <AlertCircle className="w-5 h-5" />;
+      default: return <Clock className="w-5 h-5" />;
+    }
+  };
 
-        setLoadingLoc(true);
-        setLocationError(null);
+  const VehicleIcon = ({ type }) => {
+    switch(type.toLowerCase()) {
+      case 'car': return <Car className="w-6 h-6" />;
+      case 'bike': return <Bike className="w-6 h-6" />;
+      case 'truck': return <Truck className="w-6 h-6" />;
+      default: return <Car className="w-6 h-6" />;
+    }
+  };
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setLocation({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                });
-                setLoadingLoc(false);
-            },
-            (error) => {
-                setLoadingLoc(false);
-                setLocationError("Unable to retrieve your location. Please try the test button.");
-            },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
-    };
-
-    const useTestLocation = () => {
-        setLocation({ lat: 30.3165, lng: 78.0322 }); // Dehradun
-        setLocationError(null);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!location.lat) {
-            alert("Please get your location first!");
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            await api.post("/requests", {
-                vehicle_type: vehicle,
-                problem_desc: problem,
-                lat: location.lat,
-                lng: location.lng,
-            });
-            toast.success("Help Requested! Waiting for a mechanic...");
-            setProblem("");
-            setLocation({ lat: null, lng: null });
-            fetchRequests(); // Refresh list
-        } catch (err) {
-            toast.error("Error submitting: " + (err.response?.data?.detail || err.message));
-        }
-        setSubmitting(false);
-    };
-
-    // --- NEW: CANCEL FUNCTION ---
-    const cancelRequest = async (id) => {
-        if (!confirm("Are you sure you want to cancel this request?")) return;
-        try {
-            await api.post(`/requests/${id}/cancel`);
-            toast.success("Request cancelled");
-            fetchRequests(); // Refresh list to show updated status
-        } catch (err) {
-            toast.error("Error cancelling: " + (err.response?.data?.detail || err.message));
-        }
-    };
-
-    // --- FILTERING ---
-    const activeRequests = myRequests.filter(
-        req => req.status === 'Pending' || req.status === 'Accepted' || req.status === 'En Route'
-    );
-    const historyRequests = myRequests.filter(
-        req => req.status === 'Completed' || req.status === 'Cancelled' || req.status === 'Rejected'
-    );
-
-    // --- HELPERS (Replacements for missing components) ---
-    
-    const StatusBadge = ({ status }) => {
-        const styles = {
-            Pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
-            Accepted: "bg-blue-100 text-blue-700 border-blue-200",
-            "En Route": "bg-purple-100 text-purple-700 border-purple-200",
-            Completed: "bg-green-100 text-green-700 border-green-200",
-            Cancelled: "bg-red-100 text-red-700 border-red-200",
-            Rejected: "bg-red-100 text-red-700 border-red-200",
-        };
-        const defaultStyle = "bg-gray-100 text-gray-700 border-gray-200";
-
-        return (
-            <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${styles[status] || defaultStyle}`}>
-                {status}
-            </span>
-        );
-    };
-
-    const LoadingSpinner = ({ size }) => (
-        <svg 
-            className={`animate-spin ${size === 'large' ? 'h-8 w-8' : 'h-5 w-5'} text-current`} 
-            xmlns="http://www.w3.org/2000/svg" 
-            fill="none" 
-            viewBox="0 0 24 24"
-        >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-    );
-
-    return (
-        <div className="min-h-screen bg-gray-50 pb-12">
-            <Button 
-    type="submit" 
-    isLoading={submitting} 
-    variant="primary"
-    className="w-full py-3 text-lg"
->
-    <PaperAirplaneIcon className="w-5 h-5 mr-2" />
-    Request Help Now
-</Button>
-            {/* Navbar Replacement */}
-            <Navbar className="bg-white shadow-sm p-4 mb-6">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <span className="font-bold text-xl text-blue-600">RoadResque</span>
-                    <span className="text-gray-500 text-sm">Welcome, {user?.name || 'Driver'}</span>
-                </div>
-            </Navbar>
-
-            <div className="max-w-4xl mx-auto p-4 sm:p-6">
-                {/* Header */}
-                <div className="mb-6 animate-fade-in">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                        🚑 Request Assistance
-                    </h1>
-                    <p className="text-gray-500 mt-1">Help is just a click away</p>
-                </div>
-
-                <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Request Form Card */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6 animate-fade-in h-fit">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <span className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                                🆘
-                            </span>
-                            New Request
-                        </h2>
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Vehicle Type */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Vehicle Type
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {["Car", "Bike", "Truck"].map((v) => (
-                                        <button
-                                            key={v}
-                                            type="button"
-                                            onClick={() => setVehicle(v)}
-                                            className={`p-3 rounded-xl border-2 transition-all ${
-                                                vehicle === v
-                                                    ? "border-blue-500 bg-blue-50 shadow-md"
-                                                    : "border-gray-200 hover:border-gray-300"
-                                            }`}
-                                        >
-                                            <div className="text-2xl mb-1">
-                                                {v === "Car" ? "🚗" : v === "Bike" ? "🏍️" : "🚛"}
-                                            </div>
-                                            <div className={`text-sm font-medium ${vehicle === v ? "text-blue-700" : "text-gray-600"}`}>
-                                                {v}
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Problem Description */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    What's the problem?
-                                </label>
-                                <textarea
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-800 placeholder-gray-400 resize-none"
-                                    rows="3"
-                                    placeholder="e.g. Flat tire, battery dead, engine not starting..."
-                                    value={problem}
-                                    onChange={(e) => setProblem(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            {/* Location */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Your Location
-                                </label>
-                                
-                                {locationError && (
-                                    <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                                        ⚠️ {locationError}
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={getLocation}
-                                        disabled={loadingLoc}
-                                        className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-                                            location.lat
-                                                ? "bg-green-100 text-green-700 border-2 border-green-300"
-                                                : "bg-blue-500 hover:bg-blue-600 text-white"
-                                        }`}
-                                    >
-                                        {loadingLoc ? (
-                                            <LoadingSpinner size="small" />
-                                        ) : location.lat ? (
-                                            <>✅ Location Set</>
-                                        ) : (
-                                            <>📍 Get Location</>
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={useTestLocation}
-                                        className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all"
-                                        title="Use Test Location"
-                                    >
-                                        🧪
-                                    </button>
-                                </div>
-
-                                {location.lat && (
-                                    <div className="mt-2 p-2 bg-green-50 rounded-lg text-xs text-green-700 flex items-center justify-between">
-                                        <span>📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
-                                        <a
-                                            href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline"
-                                        >
-                                            <Map lat={location.lat} lng={location.lng} />
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={!location.lat || loadingLoc || submitting}
-                                className="w-full py-4 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <LoadingSpinner size="small" />
-                                        <span>Sending Request...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-xl">🆘</span>
-                                        <span>REQUEST HELP NOW</span>
-                                    </>
-                                )}
-                            </button>
-                        </form>
-                    </div>
-                    
-                    {/* Requests List Card */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6 animate-fade-in stagger-1">
-                        {/* Tabs */}
-                        <div className="flex gap-2 mb-4">
-                            <button
-                                onClick={() => setActiveTab("active")}
-                                className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-all ${
-                                    activeTab === "active"
-                                        ? "bg-blue-500 text-white shadow-md"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                            >
-                                Active ({activeRequests.length})
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("history")}
-                                className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-all ${
-                                    activeTab === "history"
-                                        ? "bg-blue-500 text-white shadow-md"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                            >
-                                History ({historyRequests.length})
-                            </button>
-                        </div>
-
-                        {/* Request List */}
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                            {loading ? (
-                                <div className="py-12 flex flex-col items-center">
-                                    <LoadingSpinner size="large" />
-                                    <p className="mt-2 text-gray-400">Loading requests...</p>
-                                </div>
-                                
-                            ) : (activeTab === "active" ? activeRequests : historyRequests).length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <div className="text-5xl mb-3">
-                                        {activeTab === "active" ? "🎉" : "📋"}
-                                    </div>
-                                    <p className="text-gray-500">
-                                        {activeTab === "active" 
-                                            ? "No active requests" 
-                                            : "No past requests yet"
-                                        }
-                                    </p>
-                                </div>
-                            ) : (
-                                (activeTab === "active" ? activeRequests : historyRequests).map((req, index) => (
-                                    <div
-                                        key={req.id}
-                                        className="p-4 bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-xl hover:shadow-md transition-all animate-fade-in"
-                                        style={{ animationDelay: `${index * 0.1}s` }}
-                                    >
-                                        {/* Header */}
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-2xl">
-                                                    {req.vehicle_type === "Car" ? "🚗" : req.vehicle_type === "Bike" ? "🏍️" : "🚛"}
-                                                </span>
-                                                <div>
-                                                    <h4 className="font-semibold text-gray-800">{req.vehicle_type}</h4>
-                                                    <p className="text-sm text-gray-500">{req.problem_desc}</p>
-                                                </div>
-                                            </div>
-                                            <StatusBadge status={req.status} />
-                                        </div>
-
-                                        {/* Mechanic Info */}
-                                        {req.mechanic && (
-                                            <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100 rounded-xl">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold">
-                                                            {(req.mechanic.name || "M").charAt(0)}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-gray-800">{req.mechanic.name || "Mechanic"}</p>
-                                                            <p className="text-sm text-gray-500">{req.mechanic.phone}</p>
-                                                        </div>
-                                                    </div>
-                                                    <a
-                                                        href={`tel:${req.mechanic.phone}`}
-                                                        className="w-12 h-12 bg-gradient-to-r from-green-400 to-green-500 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all"
-                                                    >
-                                                        📞
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Status Messages */}
-                                        {req.status === "En Route" && (
-                                            <div className="mt-3 p-2 bg-purple-50 rounded-lg text-purple-700 text-sm flex items-center gap-2 animate-pulse">
-                                                <span>🚗</span>
-                                                <span>Mechanic is on the way!</span>
-                                            </div>
-                                        )}
-
-                                        {/* Cancel Button */}
-                                        {req.status === "Pending" && (
-                                            <button
-                                                onClick={() => cancelRequest(req.id)}
-                                                className="mt-3 w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-all border border-red-200"
-                                            >
-                                                ❌ Cancel Request
-                                            </button>
-                                        )}
-
-                                        {/* Timestamp */}
-                                        <p className="mt-2 text-xs text-gray-400">
-                                            {new Date(req.created_at).toLocaleString()}
-                                        </p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
+  return (
+    <div className="driver-dashboard">
+      {/* Header */}
+      <motion.header 
+        className="dashboard-header glass-effect"
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+      >
+        <div className="header-content">
+          <div className="header-left">
+            <Car className="header-icon" />
+            <div>
+              <h1>Driver Dashboard</h1>
+              <p className="header-subtitle">Request help anytime</p>
             </div>
+          </div>
+          <div className="header-actions">
+            <button 
+              className="btn-create"
+              onClick={() => setShowNewRequest(true)}
+            >
+              <Plus className="w-5 h-5" />
+              Request Help
+            </button>
+            <button 
+              className="btn-logout"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-    );
-}
+      </motion.header>
+
+      <div className="dashboard-container">
+        {/* Tabs */}
+        <div className="tabs-container">
+          <motion.button
+            className={`tab ${activeTab === 'active' ? 'active' : ''}`}
+            onClick={() => setActiveTab('active')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Clock className="w-5 h-5" />
+            Active ({activeRequests.length})
+          </motion.button>
+          <motion.button
+            className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <History className="w-5 h-5" />
+            History ({historyRequests.length})
+          </motion.button>
+        </div>
+
+        {/* Content */}
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div 
+              className="loading-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <Loader className="spinner" />
+              <p>Loading requests...</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="requests-grid"
+            >
+              {activeTab === 'active' ? (
+                activeRequests.length === 0 ? (
+                  <div className="empty-state glass-effect">
+                    <div className="empty-icon">🚗</div>
+                    <h3>No Active Requests</h3>
+                    <p>Click "Request Help" when you need assistance</p>
+                    <button 
+                      className="btn-primary"
+                      onClick={() => setShowNewRequest(true)}
+                    >
+                      <Plus className="w-5 h-5" />
+                      Create Request
+                    </button>
+                  </div>
+                ) : (
+                  activeRequests.map((request) => (
+                    <motion.div
+                      key={request.id}
+                      className="request-card glass-effect"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -5 }}
+                    >
+                      <div className="request-header">
+                        <div className="vehicle-badge">
+                          <VehicleIcon type={request.vehicle_type} />
+                          <span>{request.vehicle_type}</span>
+                        </div>
+                        <div className={`status-badge ${getStatusColor(request.status)}`}>
+                          {getStatusIcon(request.status)}
+                          <span>{request.status}</span>
+                        </div>
+                      </div>
+
+                      <div className="request-body">
+                        <div className="problem-section">
+                          <AlertCircle className="w-5 h-5 text-orange-400" />
+                          <p>{request.problem_desc}</p>
+                        </div>
+
+                        {request.mechanic && (
+                          <motion.div 
+                            className="mechanic-info"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                          >
+                            <div className="mechanic-header">
+                              <div className="mechanic-avatar">
+                                🔧
+                              </div>
+                              <div>
+                                <p className="mechanic-name">{request.mechanic.name}</p>
+                                <p className="mechanic-label">Assigned Mechanic</p>
+                              </div>
+                            </div>
+                            <a 
+                              href={`tel:${request.mechanic.phone}`}
+                              className="btn-call"
+                            >
+                              <Phone className="w-4 h-4" />
+                              Call Mechanic
+                            </a>
+                          </motion.div>
+                        )}
+
+                        <div className="request-meta">
+                          <div className="meta-item">
+                            <MapPin className="w-4 h-4" />
+                            <span>Location saved</span>
+                          </div>
+                          <div className="meta-item">
+                            <Clock className="w-4 h-4" />
+                            <span>{new Date(request.created_at).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {request.status === 'Pending' && (
+                        <div className="request-actions">
+                          <button
+                            className="btn-cancel"
+                            onClick={() => handleCancelRequest(request.id)}
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Cancel Request
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))
+                )
+              ) : (
+                historyRequests.length === 0 ? (
+                  <div className="empty-state glass-effect">
+                    <div className="empty-icon">📋</div>
+                    <h3>No History Yet</h3>
+                    <p>Your completed requests will appear here</p>
+                  </div>
+                ) : (
+                  historyRequests.map((request) => (
+                    <motion.div
+                      key={request.id}
+                      className="request-card glass-effect history-card"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="request-header">
+                        <div className="vehicle-badge">
+                          <VehicleIcon type={request.vehicle_type} />
+                          <span>{request.vehicle_type}</span>
+                        </div>
+                        <div className={`status-badge ${getStatusColor(request.status)}`}>
+                          {getStatusIcon(request.status)}
+                          <span>{request.status}</span>
+                        </div>
+                      </div>
+
+                      <div className="request-body">
+                        <p className="problem-text">{request.problem_desc}</p>
+                        <div className="request-meta">
+                          <Clock className="w-4 h-4" />
+                          <span>{new Date(request.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* New Request Modal */}
+{/* New Request Modal */}
+<AnimatePresence>
+  {showNewRequest && (
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={() => setShowNewRequest(false)}
+    >
+      <motion.div 
+        className="modal-content glass-effect"
+        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 50 }}
+        onClick={(e) => e.stopPropagation()} // ✅ Prevent closing when clicking inside
+      >
+        <div className="modal-header">
+          <h2>Request Assistance</h2>
+          <button 
+            className="modal-close"
+            onClick={() => setShowNewRequest(false)}
+          >
+            <XCircle className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleCreateRequest} className="request-form">
+          <div className="form-group">
+            <label>Vehicle Type</label>
+            <div className="vehicle-selector">
+              {['car', 'bike', 'truck'].map((type) => (
+                <motion.button
+                  key={type}
+                  type="button"
+                  className={`vehicle-option ${vehicleType === type ? 'selected' : ''}`}
+                  onClick={() => setVehicleType(type)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <VehicleIcon type={type} />
+                  <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>What's the problem?</label>
+            <textarea
+              value={problemDesc}
+              onChange={(e) => setProblemDesc(e.target.value)}
+              placeholder="e.g., Flat tire, battery dead, engine not starting..."
+              rows={4}
+              required
+              minLength={5}
+              className="form-textarea"
+            />
+            <p className="input-hint">{problemDesc.length}/500 characters</p>
+          </div>
+
+          <div className="form-group">
+            <div className="location-indicator">
+              <MapPin className="w-5 h-5 text-blue-400" />
+              <span>
+                {userLocation 
+                  ? '✓ Location detected' 
+                  : '⏳ Getting your location...'}
+              </span>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowNewRequest(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-submit"
+              disabled={isSubmitting || !userLocation}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader className="spinner-small" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Navigation className="w-5 h-5" />
+                  Request Help Now
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+    </div>
+  );
+};
+
+export default DriverDashboard;

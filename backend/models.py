@@ -32,4 +32,8 @@ class ServiceRequest(Base):
     status=Column(String,default="Pending")
     created_at=Column(DateTime,default=datetime.utcnow)
     
+    rating = Column(Integer, nullable=True)
+    feedback = Column(String, nullable=True)
     
+    estimated_price = Column(Float, nullable=True)
+    final_price = Column(Float, nullable=True)
