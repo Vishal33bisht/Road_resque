@@ -20,10 +20,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Roadside Rescue API")
 
-origins = [
-    "http://localhost:5173", 
-    "http://192.168.43.59:5173",
-]
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 origins = [origin.strip() for origin in CORS_ORIGINS.split(",")]
 
@@ -86,7 +83,6 @@ def test_db(db: Session = Depends(get_db)):
 
 
 @app.post("/register", response_model=schemas.UserResponse)
-@limiter.limit("5/minute")  # Only 5 registrations per minute per IP
 def register(request:Request,user: schemas.UserCreate, db: Session = Depends(get_db)):
     logger.info(f"New registration attempt: {user.email}")
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
@@ -128,7 +124,8 @@ def login(request: Request,form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 
 @app.post("/requests", response_model=schemas.RequestResponse)
-def create_request(request: schemas.RequestCreate,
+@limiter.limit("10/minute")
+def create_request(request: Request,request_data: schemas.RequestCreate,
                    current_user: models.User = Depends(get_current_user),
                    db: Session = Depends(get_db)):
     
@@ -247,8 +244,9 @@ def toggle_availability(lat: float, lng: float,
     return {"is_available": current_user.is_available}
 
 
-@app.get("/mechanic/requests", response_model=List[schemas.RequestResponse])
-def get_nearby_requests(current_user: models.User = Depends(get_current_user), 
+@app.get("/mechanic/requests", response_model=List[schemas.RequestResponse]) 
+@limiter.limit("60/minute") 
+def get_nearby_requests(request: Request,current_user: models.User = Depends(get_current_user), 
                         db: Session = Depends(get_db)):
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -303,8 +301,8 @@ def update_mechanic_location(
 
 @app.post("/requests/{request_id}/accept")
 def accept_request(request_id: int, 
-                   current_user: models.User = Depends(get_current_user), 
-                   db: Session = Depends(get_db)):
+        current_user: models.User = Depends(get_current_user), 
+        db: Session = Depends(get_db)):
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -320,7 +318,7 @@ def accept_request(request_id: int,
             detail=f"Request already {req.status.lower()}. Another mechanic may have accepted it."
         )
      
-        req.status = "Accepted"
+    req.status = "Accepted"
     req.mechanic_id = current_user.id
     current_user.is_available = False
     
