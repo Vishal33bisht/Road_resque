@@ -23,19 +23,31 @@
     const [showConfetti, setShowConfetti] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
 
-    useEffect(() => {
-      getUserLocation();
-      checkActiveJob();
-      
-      const interval = setInterval(() => {
-        if (isOnline) {
-          fetchNearbyRequests();
-        }
-        checkActiveJob();
-      }, 5000);
-      
-      return () => clearInterval(interval);
-    }, [isOnline]);
+useEffect(() => {
+  // Update location every 10 seconds when online
+  if (isOnline && userLocation) {
+    const locationInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            await api.post('/mechanic/update-location', null, {
+              params: {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+              }
+            });
+          } catch (error) {
+            console.error('Failed to update location:', error);
+          }
+        },
+        (error) => console.error('Geolocation error:', error)
+      );
+    }, 10000); // Every 10 seconds
+
+    return () => clearInterval(locationInterval);
+  }
+}, [isOnline, userLocation]);
+
 
     const getUserLocation = () => {
       if (navigator.geolocation) {

@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import api from '../api';
 import './DriverDashboard.css';
 import 'leaflet/dist/leaflet.css';
+//const [lastFetchTime, setLastFetchTime] = useState(0);
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
@@ -34,6 +35,12 @@ const DriverDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+//   useEffect(() => {
+//   if (isOnline) {
+//     fetchRequests(); // Fetch immediately when going online
+//   }
+// }, [isOnline]);
+
   const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -51,6 +58,9 @@ const DriverDashboard = () => {
   };
 
   const fetchRequests = async () => {
+    const now = Date.now();
+  if (now - lastFetchTime < 3000) return;
+  
     try {
       const response = await api.get('/my-requests');
       setRequests(response.data);

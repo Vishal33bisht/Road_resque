@@ -253,11 +253,17 @@ def get_nearby_requests(current_user: models.User = Depends(get_current_user),
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    if current_user.latitude is None or current_user.longitude is None:
+        return []
+    
     logger.info(f"Mechanic {current_user.name} requesting nearby jobs")
     logger.debug(f"Mechanic Location: {current_user.latitude}, {current_user.longitude}")
     
-    pending_requests = db.query(models.ServiceRequest).filter(models.ServiceRequest.status == "Pending").all()
+    pending_requests = db.query(models.ServiceRequest).filter(models.ServiceRequest.status == "Pending").limit(50).all()
     logger.info(f"Total Pending Requests in DB: {len(pending_requests)}")
+    
+    lat_range = 0.45
+    lng_range = 0.45
     
     nearby = []
     for req in pending_requests:
@@ -275,6 +281,25 @@ def get_nearby_requests(current_user: models.User = Depends(get_current_user),
     
     return nearby
 
+@app.post("/mechanic/update-location")
+def update_mechanic_location(
+    lat: float, 
+    lng: float,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != "mechanic":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # ✅ Validate coordinates
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="Invalid coordinates")
+    
+    current_user.latitude = lat
+    current_user.longitude = lng
+    db.commit()
+    
+    return {"message": "Location updated", "lat": lat, "lng": lng}
 
 @app.post("/requests/{request_id}/accept")
 def accept_request(request_id: int, 
@@ -282,17 +307,31 @@ def accept_request(request_id: int,
                    db: Session = Depends(get_db)):
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
-    req = db.query(models.ServiceRequest).filter(models.ServiceRequest.id == request_id).first()
+    
+    req = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.id == request_id
+    ).with_for_update().first() 
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
+    
     if req.status != "Pending":
-        raise HTTPException(status_code=400, detail="Request already taken")
-    req.status = "Accepted"
+        raise HTTPException(
+            status_code=409, 
+            detail=f"Request already {req.status.lower()}. Another mechanic may have accepted it."
+        )
+     
+        req.status = "Accepted"
     req.mechanic_id = current_user.id
     current_user.is_available = False
     
-    db.commit()
-    return {"status": "assigned"}
+    try:
+        db.commit()
+        logger.info(f"Mechanic {current_user.id} accepted request {request_id}")
+        return {"status": "assigned", "message": "Job successfully accepted"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error accepting request: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to accept job")
 
 @app.get("/requests/{request_id}", response_model=schemas.RequestWithMechanic)
 def get_request(request_id: int,
@@ -330,6 +369,18 @@ def get_request(request_id: int,
     
     return response
 
+VALID_TRANSITIONS = {
+    "Pending": ["Accepted", "Cancelled", "Rejected"],
+    "Accepted": ["En Route", "Rejected"],
+    "En Route": ["Completed"],
+    "Completed": [],
+    "Cancelled": [],
+    "Rejected": []
+}
+
+def validate_status_transition(current_status: str, new_status: str) -> bool:
+    """Validate if status transition is allowed"""
+    return new_status in VALID_TRANSITIONS.get(current_status, [])
 
 @app.post("/requests/{request_id}/start")
 def start_trip(request_id: int,
@@ -348,8 +399,11 @@ def start_trip(request_id: int,
     if req.mechanic_id != current_user.id:
         raise HTTPException(status_code=403, detail="This job is not assigned to you")
     
-    if req.status != "Accepted":
-        raise HTTPException(status_code=400, detail=f"Cannot start trip. Current status: {req.status}")
+    if not validate_status_transition(req.status, "En Route"):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot start trip from status '{req.status}'. Must be 'Accepted'."
+        )
     
     req.status = "En Route"
     db.commit()
