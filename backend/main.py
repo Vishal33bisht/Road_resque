@@ -22,7 +22,7 @@ app = FastAPI(title="Roadside Rescue API")
 
 allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-origins = [origin.strip() for origin in CORS_ORIGINS.split(",")]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
