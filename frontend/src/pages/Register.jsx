@@ -2,6 +2,13 @@ import { useState } from 'react';
 import api from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { getApiErrorMessage } from '../utils/errorHandler';
+
+const normalizePhone = (phone) => {
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  return trimmed.startsWith('+') ? `+${digits}` : digits;
+};
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -18,11 +25,16 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/register", formData);
+      await api.post("/register", {
+        ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: normalizePhone(formData.phone),
+      });
       toast.success("Registration successful! Please login.");
       navigate('/login');
     } catch (error) {
-      toast.error("Error: " + (error.response?.data?.detail || "Unknown error"));
+      toast.error(getApiErrorMessage(error, "Registration failed"));
     } finally {
       setLoading(false);
     }
@@ -91,6 +103,7 @@ export default function Register() {
                     type="text" 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="John Doe"
+                    value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
                 />
@@ -102,6 +115,7 @@ export default function Register() {
                     type="email" 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="john@example.com"
+                    value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                     required
                 />
@@ -113,6 +127,7 @@ export default function Register() {
                     type="tel" 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="+1 234 567 8900"
+                    value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     required
                 />
@@ -124,9 +139,13 @@ export default function Register() {
                     type="password" 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="••••••••"
+                    value={formData.password}
+                    minLength={8}
+                    title="Use at least 8 characters with one uppercase letter and one number"
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                     required
                 />
+                <p className="mt-1 text-xs text-gray-500">At least 8 characters with one uppercase letter and one number.</p>
             </div>
 
             <button
