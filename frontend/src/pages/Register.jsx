@@ -126,7 +126,7 @@ export default function Register() {
                 <input 
                     type="tel" 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+1 234 567 8900"
+                    placeholder="+91"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     required
