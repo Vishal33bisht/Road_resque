@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, validator
 from datetime import datetime
 from typing import Optional
 import re
@@ -6,9 +6,21 @@ import re
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    phone: str = Field(..., pattern=r'^\+?1?\d{9,15}$')
+    phone: str
     password: str = Field(..., min_length=8)
     role: str
+
+    @field_validator('phone', mode='before')
+    @classmethod
+    def normalize_phone(cls, v):
+        value = str(v).strip()
+        digits = re.sub(r'\D', '', value)
+        normalized = f"+{digits}" if value.startswith("+") else digits
+
+        if not re.fullmatch(r'\+?\d{9,15}', normalized):
+            raise ValueError('Phone number must contain 9 to 15 digits')
+
+        return normalized
     
     @validator('password')
     def validate_password(cls, v):
