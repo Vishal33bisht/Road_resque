@@ -129,7 +129,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   type="email"
-                  placeholder="john@example.com"
+                  placeholder=""
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -146,7 +146,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder=""
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
