@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -23,6 +23,8 @@ const DriverDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('idle');
+  const [locationError, setLocationError] = useState('');
   const [lastFetchTime, setLastFetchTime] = useState(0);
   const lastFetchTimeRef = useRef(lastFetchTime);
   
@@ -31,38 +33,69 @@ const DriverDashboard = () => {
   const [problemDesc, setProblemDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchRequests();
-    getUserLocation();
-    
-    // Poll for updates every 5 seconds
-    const interval = setInterval(fetchRequests, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const getLocationErrorMessage = (error) => {
+    if (!window.isSecureContext) {
+      return 'Location works only on HTTPS or localhost. Open this app with a secure URL.';
+    }
 
-//   useEffect(() => {
-//   if (isOnline) {
-//     fetchRequests(); // Fetch immediately when going online
-//   }
-// }, [isOnline]);
-
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        () => {
-          toast.error('Please enable location services');
-        }
-      );
+    switch (error?.code) {
+      case error?.PERMISSION_DENIED:
+        return 'Location permission is blocked. Allow location access in your browser settings.';
+      case error?.POSITION_UNAVAILABLE:
+        return 'Your device location is unavailable right now. Check GPS or network location.';
+      case error?.TIMEOUT:
+        return 'Location request timed out. Try again from a place with better signal.';
+      default:
+        return 'Unable to get your location. Please try again.';
     }
   };
 
-  const fetchRequests = async () => {
+  const getUserLocation = useCallback(() => {
+    setLocationStatus('loading');
+    setLocationError('');
+
+    if (!navigator.geolocation) {
+      const message = 'Your browser does not support location services.';
+      setLocationStatus('error');
+      setLocationError(message);
+      setUserLocation(null);
+      toast.error(message);
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      const message = 'Location works only on HTTPS or localhost. Open this app with a secure URL.';
+      setLocationStatus('error');
+      setLocationError(message);
+      setUserLocation(null);
+      toast.error(message);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationStatus('success');
+      },
+      (error) => {
+        const message = getLocationErrorMessage(error);
+        setLocationStatus('error');
+        setLocationError(message);
+        setUserLocation(null);
+        toast.error(message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 60000
+      }
+    );
+  }, []);
+
+  const fetchRequests = useCallback(async () => {
     const now = Date.now();
     if (now - lastFetchTimeRef.current < 3000) return;
     lastFetchTimeRef.current = now;
@@ -76,13 +109,33 @@ const DriverDashboard = () => {
       console.error('Error fetching requests:', error);
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+    getUserLocation();
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(fetchRequests, 5000);
+    return () => clearInterval(interval);
+  }, [fetchRequests, getUserLocation]);
+
+  useEffect(() => {
+    if (showNewRequest && !userLocation && locationStatus !== 'loading') {
+      getUserLocation();
+    }
+  }, [showNewRequest, userLocation, locationStatus, getUserLocation]);
 
   const handleCreateRequest = async (e) => {
     e.preventDefault();
     
     if (!userLocation) {
-      toast.error('Waiting for location...');
+      if (locationStatus === 'error') {
+        toast.error(locationError || 'Please enable location services');
+      } else {
+        toast.error('Still getting your location...');
+        getUserLocation();
+      }
       return;
     }
 
@@ -445,13 +498,29 @@ const DriverDashboard = () => {
           </div>
 
           <div className="form-group">
-            <div className="location-indicator">
+            <div className={`location-indicator location-${locationStatus}`}>
               <MapPin className="w-5 h-5 text-blue-400" />
-              <span>
-                {userLocation 
-                  ? '✓ Location detected' 
-                  : '⏳ Getting your location...'}
-              </span>
+              <div className="location-copy">
+                <span>
+                  {userLocation 
+                    ? 'Location detected' 
+                    : locationStatus === 'error'
+                      ? 'Location unavailable'
+                      : 'Getting your location...'}
+                </span>
+                {locationStatus === 'error' && (
+                  <small>{locationError}</small>
+                )}
+              </div>
+              {locationStatus === 'error' && (
+                <button
+                  type="button"
+                  className="btn-location-retry"
+                  onClick={getUserLocation}
+                >
+                  Retry
+                </button>
+              )}
             </div>
           </div>
 
