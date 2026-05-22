@@ -27,14 +27,20 @@ logging.basicConfig(
 
 app = FastAPI(title="Roadside Rescue API")
 
-allowed_origins = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
-).split(",")
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "https://road-resque.vercel.app"
+)
+
+
+def parse_cors_origins() -> list[str]:
+    origins = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    return [origin.strip().rstrip("/") for origin in origins if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
+    allow_origins=parse_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
