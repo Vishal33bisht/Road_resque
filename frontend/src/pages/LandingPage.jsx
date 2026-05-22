@@ -103,7 +103,7 @@ const LandingPage = () => {
           >
             <button 
               className="cta-button primary"
-              onClick={() => navigate('/register?role=driver')}
+              onClick={() => navigate('/register?role=user')}
             >
               <span>I Need Help</span>
               <Car className="ml-2" />
@@ -230,7 +230,7 @@ const LandingPage = () => {
           viewport={{ once: true }}
         >
           <h2>Ready to Get Started?</h2>
-          <p>Join thousands of drivers and mechanics already using our platform</p>
+          <p>Join thousands of users and mechanics already using our platform</p>
           <button 
             className="cta-button primary large"
             onClick={() => navigate('/register')}

@@ -22,7 +22,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
             <span className="capitalize font-semibold">
               {user?.name ? `${user.name} (` : ''}
-              {user?.role === 'mechanic' ? '🔧 Mechanic' : '👤 Driver'}
+              {user?.role === 'mechanic' ? '🔧 Mechanic' : '👤 User'}
               {user?.name ? ')' : ''}
             </span>
             <button onClick={handleLogout} className="bg-red-500 px-3 py-1 rounded text-sm hover:bg-red-600">

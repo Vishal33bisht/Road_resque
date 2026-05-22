@@ -22,7 +22,7 @@ function ProtectedRoute({ children, allowedRole }) {
         if (role === "mechanic") {
             return <Navigate to="/mechanic-dashboard" />;
         } else if(role === "user"){
-            return <Navigate to="/driver-dashboard" />;
+            return <Navigate to="/user-dashboard" />;
         }
         else {
         // If role is missing or unknown, force logout/login
@@ -44,7 +44,7 @@ function PublicRoute({ children }) {
         if (role === "mechanic") {
             return <Navigate to="/mechanic-dashboard" />;
         } else {
-            return <Navigate to="/driver-dashboard" />;
+            return <Navigate to="/user-dashboard" />;
         }
     }
 
@@ -79,13 +79,14 @@ function App() {
 
                 {/* Protected Routes */}
                 <Route 
-                    path="/driver-dashboard" 
+                    path="/user-dashboard" 
                     element={
                         <ProtectedRoute allowedRole="user">
                             <DriverDashboard />
                         </ProtectedRoute>
                     } 
                 />
+                <Route path="/driver-dashboard" element={<Navigate to="/user-dashboard" />} />
                 <Route 
                     path="/mechanic-dashboard" 
                     element={
@@ -102,7 +103,7 @@ function App() {
                         <ProtectedRoute>
                             {localStorage.getItem("role") === "mechanic" 
                                 ? <Navigate to="/mechanic-dashboard" />
-                                : <Navigate to="/driver-dashboard" />
+                                : <Navigate to="/user-dashboard" />
                             }
                         </ProtectedRoute>
                     } 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -25,6 +25,7 @@ const DriverDashboard = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
+  const [liveMechanicLocations, setLiveMechanicLocations] = useState({});
   const [lastFetchTime, setLastFetchTime] = useState(0);
   const lastFetchTimeRef = useRef(lastFetchTime);
   
@@ -111,6 +112,16 @@ const DriverDashboard = () => {
     }
   }, []);
 
+  const getWebSocketUrl = useCallback((requestId) => {
+    const token = localStorage.getItem('token');
+    const baseUrl = new URL(api.defaults.baseURL || window.location.origin, window.location.origin);
+    baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    baseUrl.pathname = `/ws/requests/${requestId}/mechanic-location`;
+    baseUrl.search = '';
+    baseUrl.searchParams.set('token', token);
+    return baseUrl.toString();
+  }, []);
+
   useEffect(() => {
     fetchRequests();
     getUserLocation();
@@ -184,13 +195,74 @@ const DriverDashboard = () => {
     toast.success('Logged out successfully');
   };
 
-  const activeRequests = requests.filter(r => 
+  const activeRequests = useMemo(() => requests.filter(r => 
     ['Pending', 'Accepted', 'En Route'].includes(r.status)
-  );
+  ), [requests]);
   
-  const historyRequests = requests.filter(r => 
+  const historyRequests = useMemo(() => requests.filter(r => 
     ['Completed', 'Cancelled', 'Rejected'].includes(r.status)
+  ), [requests]);
+
+  const trackedRequestIds = useMemo(
+    () => activeRequests
+      .filter((request) => request.mechanic && ['Accepted', 'En Route'].includes(request.status))
+      .map((request) => request.id),
+    [activeRequests]
   );
+
+  useEffect(() => {
+    if (trackedRequestIds.length === 0) return undefined;
+
+    const sockets = trackedRequestIds.map((requestId) => {
+      const socket = new WebSocket(getWebSocketUrl(requestId));
+
+      socket.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        if (payload.type !== 'mechanic_location') return;
+
+        setLiveMechanicLocations((current) => ({
+          ...current,
+          [payload.request_id]: {
+            lat: payload.lat,
+            lng: payload.lng,
+            distanceKm: payload.distance_km,
+            updatedAt: Date.now()
+          }
+        }));
+      };
+
+      return socket;
+    });
+
+    return () => sockets.forEach((socket) => socket.close());
+  }, [trackedRequestIds, getWebSocketUrl]);
+
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const radiusKm = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(lat1 * Math.PI / 180)
+      * Math.cos(lat2 * Math.PI / 180)
+      * Math.sin(dLng / 2)
+      * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (radiusKm * c).toFixed(1);
+  };
+
+  const getMechanicLocation = (request) => {
+    const liveLocation = liveMechanicLocations[request.id];
+    if (liveLocation) return liveLocation;
+    if (request.mechanic?.latitude != null && request.mechanic?.longitude != null) {
+      return {
+        lat: request.mechanic.latitude,
+        lng: request.mechanic.longitude,
+        distanceKm: request.mechanic.distance_km,
+        updatedAt: null
+      };
+    }
+    return null;
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -237,7 +309,7 @@ const DriverDashboard = () => {
           <div className="header-left">
             <Car className="header-icon" />
             <div>
-              <h1>Driver Dashboard</h1>
+              <h1>User Dashboard</h1>
               <p className="header-subtitle">Request help anytime</p>
             </div>
           </div>
@@ -247,7 +319,7 @@ const DriverDashboard = () => {
               onClick={() => setShowNewRequest(true)}
             >
               <Plus className="w-5 h-5" />
-              Request Help
+              <span>Request Help</span>
             </button>
             <button 
               className="btn-logout"
@@ -317,7 +389,14 @@ const DriverDashboard = () => {
                     </button>
                   </div>
                 ) : (
-                  activeRequests.map((request) => (
+                  activeRequests.map((request) => {
+                    const mechanicLocation = getMechanicLocation(request);
+                    const mechanicDistance = mechanicLocation?.distanceKm
+                      ?? (mechanicLocation
+                        ? calculateDistance(request.lat, request.lng, mechanicLocation.lat, mechanicLocation.lng)
+                        : null);
+
+                    return (
                     <MotionDiv
                       key={request.id}
                       className="request-card glass-effect"
@@ -357,6 +436,15 @@ const DriverDashboard = () => {
                                 <p className="mechanic-label">Assigned Mechanic</p>
                               </div>
                             </div>
+                            {mechanicLocation && (
+                              <div className="live-location-status">
+                                <MapPin className="w-4 h-4 text-green-400" />
+                                <span>
+                                  Live location active
+                                  {mechanicDistance ? ` - ${mechanicDistance} km away` : ''}
+                                </span>
+                              </div>
+                            )}
                             <a 
                               href={`tel:${request.mechanic.phone}`}
                               className="btn-call"
@@ -365,6 +453,27 @@ const DriverDashboard = () => {
                               Call Mechanic
                             </a>
                           </MotionDiv>
+                        )}
+
+                        {mechanicLocation && (
+                          <div className="live-map">
+                            <MapContainer
+                              center={[mechanicLocation.lat, mechanicLocation.lng]}
+                              zoom={13}
+                              style={{ height: '220px', width: '100%', borderRadius: '12px' }}
+                            >
+                              <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution='&copy; OpenStreetMap contributors'
+                              />
+                              <Marker position={[request.lat, request.lng]}>
+                                <Popup>Your Location</Popup>
+                              </Marker>
+                              <Marker position={[mechanicLocation.lat, mechanicLocation.lng]}>
+                                <Popup>{request.mechanic.name}</Popup>
+                              </Marker>
+                            </MapContainer>
+                          </div>
                         )}
 
                         <div className="request-meta">
@@ -391,7 +500,8 @@ const DriverDashboard = () => {
                         </div>
                       )}
                     </MotionDiv>
-                  ))
+                  );
+                  })
                 )
               ) : (
                 historyRequests.length === 0 ? (

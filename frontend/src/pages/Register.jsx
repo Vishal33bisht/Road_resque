@@ -84,7 +84,7 @@ export default function Register() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    👤 Driver
+                    👤 User
                 </button>
                 <button
                     type="button"

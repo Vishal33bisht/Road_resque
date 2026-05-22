@@ -10,10 +10,7 @@ from services import auth_service
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> models.User:
+def get_user_from_token(token: str, db: Session) -> models.User:
     try:
         payload = jwt.decode(
             token,
@@ -27,3 +24,10 @@ def get_current_user(
         return user
     except (jwt.PyJWTError, TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> models.User:
+    return get_user_from_token(token, db)

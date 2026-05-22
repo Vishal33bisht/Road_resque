@@ -26,31 +26,42 @@
     const [userLocation, setUserLocation] = useState(null);
     const [showConfetti, setShowConfetti] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const hasUserLocation = Boolean(userLocation);
+    const hasActiveJob = Boolean(activeJob);
 
 useEffect(() => {
-  // Update location every 10 seconds when online
-  if (isOnline && userLocation) {
-    const locationInterval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            await api.post('/mechanic/update-location', null, {
-              params: {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-              }
-            });
-          } catch (error) {
-            console.error('Failed to update location:', error);
-          }
-        },
-        (error) => console.error('Geolocation error:', error)
-      );
-    }, 10000); // Every 10 seconds
+  if ((!isOnline && !hasActiveJob) || !hasUserLocation) return undefined;
 
-    return () => clearInterval(locationInterval);
-  }
-}, [isOnline, userLocation]);
+  const updateLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const nextLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(nextLocation);
+
+        try {
+          await api.post('/mechanic/update-location', null, {
+            params: nextLocation
+          });
+        } catch (error) {
+          console.error('Failed to update location:', error);
+        }
+      },
+      (error) => console.error('Geolocation error:', error),
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000
+      }
+    );
+  };
+
+  updateLocation();
+  const locationInterval = setInterval(updateLocation, 10000);
+  return () => clearInterval(locationInterval);
+}, [isOnline, hasActiveJob, hasUserLocation]);
 
 
     const getUserLocation = () => {
@@ -225,7 +236,7 @@ useEffect(() => {
               <Wrench className="header-icon" />
               <div>
                 <h1>Mechanic Dashboard</h1>
-                <p className="header-subtitle">Manage jobs and help drivers</p>
+                <p className="header-subtitle">Manage jobs and help users</p>
               </div>
             </div>
             <div className="header-actions">

@@ -11,6 +11,7 @@ import models
 import schemas
 from rate_limit import limiter
 from services.location import calculate_distance
+from services.realtime import request_location_manager
 
 router = APIRouter(tags=["mechanic"])
 logger = logging.getLogger(__name__)
@@ -50,22 +51,11 @@ def get_nearby_requests(
 
     logger.info("Mechanic %s requesting nearby jobs", current_user.name)
 
-    lat_range = 0.45
-    lng_range = 0.45
     pending_requests = (
         db.query(models.ServiceRequest)
-        .filter(
-            models.ServiceRequest.status == "Pending",
-            models.ServiceRequest.lat.between(
-                current_user.latitude - lat_range,
-                current_user.latitude + lat_range,
-            ),
-            models.ServiceRequest.lng.between(
-                current_user.longitude - lng_range,
-                current_user.longitude + lng_range,
-            ),
-        )
+        .filter(models.ServiceRequest.status == "Pending")
         .order_by(models.ServiceRequest.created_at.desc())
+        .limit(500)
         .all()
     )
     logger.info("Total Pending Requests in DB: %s", len(pending_requests))
@@ -74,9 +64,10 @@ def get_nearby_requests(
     for req in pending_requests:
         dist = calculate_distance(current_user.latitude, current_user.longitude, req.lat, req.lng)
         logger.debug("Request %s Distance: %.2f km", req.id, dist)
+        req.distance_km = round(dist, 1)
+        nearby.append(req)
 
-        if dist < 50:
-            nearby.append(req)
+    nearby.sort(key=lambda req: req.distance_km)
 
     total = len(nearby)
     offset = (page - 1) * limit
@@ -93,7 +84,7 @@ def get_nearby_requests(
 
 
 @router.post("/mechanic/update-location")
-def update_mechanic_location(
+async def update_mechanic_location(
     lat: float,
     lng: float,
     current_user: models.User = Depends(get_current_user),
@@ -108,6 +99,29 @@ def update_mechanic_location(
     current_user.latitude = lat
     current_user.longitude = lng
     db.commit()
+
+    active_jobs = (
+        db.query(models.ServiceRequest)
+        .filter(
+            models.ServiceRequest.mechanic_id == current_user.id,
+            models.ServiceRequest.status.in_(["Accepted", "En Route"]),
+        )
+        .all()
+    )
+
+    for job in active_jobs:
+        await request_location_manager.broadcast(
+            job.id,
+            {
+                "type": "mechanic_location",
+                "request_id": job.id,
+                "mechanic_id": current_user.id,
+                "lat": lat,
+                "lng": lng,
+                "distance_km": round(calculate_distance(job.lat, job.lng, lat, lng), 1),
+                "status": job.status,
+            },
+        )
 
     return {"message": "Location updated", "lat": lat, "lng": lng}
 

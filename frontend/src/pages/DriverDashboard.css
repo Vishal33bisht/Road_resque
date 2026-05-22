@@ -264,6 +264,27 @@
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
 }
 
+.live-location-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.live-map {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 220px;
+}
+
 .request-meta {
   display: flex;
   flex-direction: column;
@@ -622,6 +643,97 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+  .dashboard-header {
+    padding: 1rem 0;
+  }
+
+  .header-content {
+    padding: 0 1rem;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .header-left {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .header-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .header-actions {
+    flex: 0 0 auto;
+    gap: 0.5rem;
+  }
+
+  .btn-create {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .btn-create span {
+    display: none;
+  }
+
+  .btn-logout {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dashboard-container {
+    padding: 0 1rem;
+  }
+
+  .tabs-container {
+    gap: 0.5rem;
+  }
+
+  .tab {
+    flex: 1;
+    justify-content: center;
+    padding: 0.8rem 0.75rem;
+  }
+
+  .requests-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .request-card {
+    padding: 1rem;
+  }
+
+  .request-header {
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-direction: column;
+  }
+
+  .status-badge,
+  .vehicle-badge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-map {
+    min-height: 200px;
+  }
+
   .modal-content {
     width: 95%;
     max-height: 90vh;

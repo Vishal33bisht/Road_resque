@@ -1,14 +1,16 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
-from database import get_db
-from dependencies import get_current_user
+from database import SessionLocal, get_db
+from dependencies import get_current_user, get_user_from_token
 import models
 import schemas
 from rate_limit import limiter
+from services.location import calculate_distance
+from services.realtime import request_location_manager
 
 router = APIRouter(tags=["requests"])
 
@@ -33,7 +35,22 @@ def mechanic_payload(mechanic: models.User | None) -> dict | None:
         "id": mechanic.id,
         "name": mechanic.name,
         "phone": mechanic.phone,
+        "latitude": mechanic.latitude,
+        "longitude": mechanic.longitude,
+        "is_available": mechanic.is_available,
     }
+
+
+def mechanic_payload_for_request(req: models.ServiceRequest) -> dict | None:
+    payload = mechanic_payload(req.mechanic)
+    if not payload or req.mechanic.latitude is None or req.mechanic.longitude is None:
+        return payload
+
+    payload["distance_km"] = round(
+        calculate_distance(req.lat, req.lng, req.mechanic.latitude, req.mechanic.longitude),
+        1,
+    )
+    return payload
 
 
 @router.post("/requests", response_model=schemas.RequestResponse)
@@ -90,7 +107,7 @@ def get_my_requests(
                 "lng": req.lng,
                 "status": req.status,
                 "created_at": req.created_at,
-                "mechanic": mechanic_payload(req.mechanic),
+                "mechanic": mechanic_payload_for_request(req),
             }
             for req in requests
         ],
@@ -222,8 +239,58 @@ def get_request(
         "lng": req.lng,
         "status": req.status,
         "created_at": req.created_at,
-        "mechanic": mechanic_payload(req.mechanic),
+        "mechanic": mechanic_payload_for_request(req),
     }
+
+
+@router.websocket("/ws/requests/{request_id}/mechanic-location")
+async def mechanic_location_socket(websocket: WebSocket, request_id: int):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    db = SessionLocal()
+    try:
+        current_user = get_user_from_token(token, db)
+        req = (
+            db.query(models.ServiceRequest)
+            .options(joinedload(models.ServiceRequest.mechanic))
+            .filter(models.ServiceRequest.id == request_id)
+            .first()
+        )
+
+        if not req or req.customer_id != current_user.id:
+            await websocket.close(code=1008)
+            return
+
+        await request_location_manager.connect(request_id, websocket)
+
+        if req.mechanic and req.mechanic.latitude is not None and req.mechanic.longitude is not None:
+            await websocket.send_json(
+                {
+                    "type": "mechanic_location",
+                    "request_id": request_id,
+                    "mechanic_id": req.mechanic.id,
+                    "lat": req.mechanic.latitude,
+                    "lng": req.mechanic.longitude,
+                    "distance_km": round(
+                        calculate_distance(req.lat, req.lng, req.mechanic.latitude, req.mechanic.longitude),
+                        1,
+                    ),
+                    "status": req.status,
+                }
+            )
+
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        request_location_manager.disconnect(request_id, websocket)
+    except HTTPException:
+        await websocket.close(code=1008)
+    finally:
+        request_location_manager.disconnect(request_id, websocket)
+        db.close()
 
 
 @router.post("/requests/{request_id}/start")

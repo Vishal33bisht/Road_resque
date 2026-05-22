@@ -99,6 +99,7 @@ class RequestResponse(BaseModel):
     lng: float
     status: str
     created_at: datetime
+    distance_km: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -107,6 +108,10 @@ class MechanicInfo(BaseModel):
     id: int
     name: str
     phone: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    is_available: bool = False
+    distance_km: Optional[float] = None
 
 class RequestWithMechanic(RequestResponse):
     mechanic: Optional[MechanicInfo] = None
