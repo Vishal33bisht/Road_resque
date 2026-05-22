@@ -1,11 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useContext } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import LandingPage from './pages/LandingPage';
 import DriverDashboard from "./pages/DriverDashboard";
 import MechanicDashboard from "./pages/MechanicDashboard";
-import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from 'react-hot-toast';
 
 // Protected Route Component

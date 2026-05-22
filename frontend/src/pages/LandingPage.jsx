@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Wrench, Car, MapPin, Clock, Shield, Zap } from 'lucide-react';
 import './LandingPage.css';
 
+const MotionNav = motion.nav;
+const MotionDiv = motion.div;
+const MotionH1 = motion.h1;
+const MotionH2 = motion.h2;
+const MotionP = motion.p;
+
 const LandingPage = () => {
   const navigate = useNavigate();
 
@@ -34,7 +40,7 @@ const LandingPage = () => {
       </div>
 
       {/* Navigation */}
-      <motion.nav 
+      <MotionNav 
         className="navbar glass-effect"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -60,17 +66,17 @@ const LandingPage = () => {
             </button>
           </div>
         </div>
-      </motion.nav>
+      </MotionNav>
 
       {/* Hero Section */}
       <section className="hero-section">
-        <motion.div 
+        <MotionDiv 
           className="hero-content"
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.h1 
+          <MotionH1 
             className="hero-title"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -78,18 +84,18 @@ const LandingPage = () => {
           >
             Stranded on the Road?
             <span className="gradient-text"> Help is Here.</span>
-          </motion.h1>
+          </MotionH1>
           
-          <motion.p 
+          <MotionP 
             className="hero-subtitle"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
             Connect with nearby mechanics instantly. Get back on the road in minutes, not hours.
-          </motion.p>
+          </MotionP>
 
-          <motion.div 
+          <MotionDiv 
             className="hero-cta"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -109,10 +115,10 @@ const LandingPage = () => {
               <span>I'm a Mechanic</span>
               <Wrench className="ml-2" />
             </button>
-          </motion.div>
+          </MotionDiv>
 
           {/* Stats */}
-          <motion.div 
+          <MotionDiv 
             className="stats-row"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -132,11 +138,11 @@ const LandingPage = () => {
               <h3>24/7</h3>
               <p>Always Available</p>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
 
         {/* Hero Image/Animation */}
-        <motion.div 
+        <MotionDiv 
           className="hero-visual"
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
@@ -148,23 +154,23 @@ const LandingPage = () => {
               <p className="card-text">Mechanic is 2 km away</p>
             </div>
           </div>
-        </motion.div>
+        </MotionDiv>
       </section>
 
       {/* Features Section */}
       <section className="features-section">
-        <motion.h2 
+        <MotionH2 
           className="section-title"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
           Why Choose Us?
-        </motion.h2>
+        </MotionH2>
         
         <div className="features-grid">
           {features.map((feature, index) => (
-            <motion.div
+            <MotionDiv
               key={index}
               className="feature-card glass-effect"
               initial={{ opacity: 0, y: 30 }}
@@ -176,21 +182,21 @@ const LandingPage = () => {
               <div className="feature-icon">{feature.icon}</div>
               <h3>{feature.title}</h3>
               <p>{feature.desc}</p>
-            </motion.div>
+            </MotionDiv>
           ))}
         </div>
       </section>
 
       {/* How It Works */}
       <section className="how-it-works">
-        <motion.h2 
+        <MotionH2 
           className="section-title"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
           How It Works
-        </motion.h2>
+        </MotionH2>
         
         <div className="steps-container">
           {[
@@ -199,7 +205,7 @@ const LandingPage = () => {
             { step: "3", title: "Track Arrival", desc: "Watch them arrive in real-time" },
             { step: "4", title: "Get Fixed", desc: "Your vehicle is ready to go!" }
           ].map((item, index) => (
-            <motion.div
+            <MotionDiv
               key={index}
               className="step-card"
               initial={{ opacity: 0, x: -50 }}
@@ -210,14 +216,14 @@ const LandingPage = () => {
               <div className="step-number">{item.step}</div>
               <h3>{item.title}</h3>
               <p>{item.desc}</p>
-            </motion.div>
+            </MotionDiv>
           ))}
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="final-cta">
-        <motion.div 
+        <MotionDiv 
           className="cta-card glass-effect"
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -231,7 +237,7 @@ const LandingPage = () => {
           >
             Sign Up Free
           </button>
-        </motion.div>
+        </MotionDiv>
       </section>
 
       {/* Footer */}

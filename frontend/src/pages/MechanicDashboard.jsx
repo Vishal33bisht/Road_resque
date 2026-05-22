@@ -13,6 +13,10 @@
   import './MechanicDashboard.css';
   import 'leaflet/dist/leaflet.css';
 
+  const MotionHeader = motion.header;
+  const MotionButton = motion.button;
+  const MotionDiv = motion.div;
+
   const MechanicDashboard = () => {
     const navigate = useNavigate();
     const [isOnline, setIsOnline] = useState(false);
@@ -58,7 +62,7 @@ useEffect(() => {
               lng: position.coords.longitude
             });
           },
-          (error) => {
+          () => {
             toast.error('Please enable location services');
           }
         );
@@ -88,7 +92,7 @@ useEffect(() => {
           toast('⚫ You are now OFFLINE', { icon: '💤' });
           setNearbyRequests([]);
         }
-      } catch (error) {
+      } catch {
         toast.error('Failed to update availability');
       }
     };
@@ -109,7 +113,7 @@ useEffect(() => {
         const response = await api.get('/mechanic/active-job');
         setActiveJob(response.data);
         setLoading(false);
-      } catch (error) {
+      } catch {
         setActiveJob(null);
         setLoading(false);
       }
@@ -133,7 +137,7 @@ useEffect(() => {
         toast('Job rejected', { icon: '❌' });
         fetchNearbyRequests();
         setSelectedRequest(null);
-      } catch (error) {
+      } catch {
         toast.error('Failed to reject job');
       }
     };
@@ -145,7 +149,7 @@ useEffect(() => {
         await api.post(`/requests/${activeJob.id}/start`);
         toast.success('🚗 Trip started! Navigate to customer location.');
         checkActiveJob();
-      } catch (error) {
+      } catch {
         toast.error('Failed to start trip');
       }
     };
@@ -160,7 +164,7 @@ useEffect(() => {
         setTimeout(() => setShowConfetti(false), 5000);
         setActiveJob(null);
         checkActiveJob();
-      } catch (error) {
+      } catch {
         toast.error('Failed to complete job');
       }
     };
@@ -192,12 +196,26 @@ useEffect(() => {
       return (R * c).toFixed(1);
     };
 
+    useEffect(() => {
+      getUserLocation();
+      const timeout = setTimeout(checkActiveJob, 0);
+      return () => clearTimeout(timeout);
+    }, []);
+
+    useEffect(() => {
+      if (!isOnline || activeJob) return undefined;
+
+      fetchNearbyRequests();
+      const interval = setInterval(fetchNearbyRequests, 5000);
+      return () => clearInterval(interval);
+    }, [isOnline, activeJob]);
+
     return (
       <div className="mechanic-dashboard">
         {showConfetti && <Confetti recycle={false} numberOfPieces={500} />}
 
         {/* Header */}
-        <motion.header 
+        <MotionHeader 
           className="dashboard-header glass-effect"
           initial={{ y: -100 }}
           animate={{ y: 0 }}
@@ -211,7 +229,7 @@ useEffect(() => {
               </div>
             </div>
             <div className="header-actions">
-              <motion.button 
+              <MotionButton 
                 className={`toggle-availability ${isOnline ? 'online' : 'offline'}`}
                 onClick={toggleAvailability}
                 whileHover={{ scale: 1.05 }}
@@ -220,7 +238,7 @@ useEffect(() => {
                 <Power className="w-5 h-5" />
                 <span>{isOnline ? 'Go Offline' : 'Go Online'}</span>
                 <div className={`status-dot ${isOnline ? 'active' : ''}`}></div>
-              </motion.button>
+              </MotionButton>
               <button 
                 className="btn-logout"
                 onClick={handleLogout}
@@ -229,11 +247,11 @@ useEffect(() => {
               </button>
             </div>
           </div>
-        </motion.header>
+        </MotionHeader>
 
         <div className="dashboard-container">
           {/* Status Card */}
-          <motion.div 
+          <MotionDiv 
             className="status-card glass-effect"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -266,11 +284,11 @@ useEffect(() => {
                 <span>Location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</span>
               </div>
             )}
-          </motion.div>
+          </MotionDiv>
 
           {/* Active Job Section */}
           {activeJob && (
-            <motion.div 
+            <MotionDiv 
               className="active-job-section"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -348,7 +366,7 @@ useEffect(() => {
 
                   <div className="job-actions">
                     {activeJob.status === 'Accepted' && (
-                      <motion.button
+                      <MotionButton
                         className="btn-action primary"
                         onClick={handleStartTrip}
                         whileHover={{ scale: 1.02 }}
@@ -356,10 +374,10 @@ useEffect(() => {
                       >
                         <Navigation className="w-5 h-5" />
                         Start Trip
-                      </motion.button>
+                      </MotionButton>
                     )}
                     {activeJob.status === 'En Route' && (
-                      <motion.button
+                      <MotionButton
                         className="btn-action success"
                         onClick={handleCompleteJob}
                         whileHover={{ scale: 1.02 }}
@@ -367,7 +385,7 @@ useEffect(() => {
                       >
                         <CheckCircle className="w-5 h-5" />
                         Mark as Completed
-                      </motion.button>
+                      </MotionButton>
                     )}
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${activeJob.lat},${activeJob.lng}`}
@@ -381,7 +399,7 @@ useEffect(() => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </MotionDiv>
           )}
 
           {/* Nearby Requests */}
@@ -398,7 +416,7 @@ useEffect(() => {
               </div>
 
               {!isOnline ? (
-                <motion.div 
+                <MotionDiv 
                   className="empty-state glass-effect"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -413,14 +431,14 @@ useEffect(() => {
                     <Power className="w-5 h-5" />
                     Go Online Now
                   </button>
-                </motion.div>
+                </MotionDiv>
               ) : loading ? (
                 <div className="loading-state">
                   <Loader className="spinner" />
                   <p>Loading nearby requests...</p>
                 </div>
               ) : nearbyRequests.length === 0 ? (
-                <motion.div 
+                <MotionDiv 
                   className="empty-state glass-effect"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -428,11 +446,11 @@ useEffect(() => {
                   <div className="empty-icon">😴</div>
                   <h3>No Requests Nearby</h3>
                   <p>Waiting for customers to request help in your area</p>
-                </motion.div>
+                </MotionDiv>
               ) : (
                 <div className="requests-grid">
                   {nearbyRequests.map((request) => (
-                    <motion.div
+                    <MotionDiv
                       key={request.id}
                       className="request-card glass-effect"
                       initial={{ opacity: 0, y: 20 }}
@@ -466,7 +484,7 @@ useEffect(() => {
                         View Details
                         <ArrowRight className="w-4 h-4" />
                       </button>
-                    </motion.div>
+                    </MotionDiv>
                   ))}
                 </div>
               )}
@@ -478,14 +496,14 @@ useEffect(() => {
         <AnimatePresence>
           {selectedRequest && (
             <>
-              <motion.div 
+              <MotionDiv 
                 className="modal-overlay"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setSelectedRequest(null)}
               />
-              <motion.div 
+              <MotionDiv 
                 className="modal-content glass-effect"
                 initial={{ opacity: 0, scale: 0.9, y: 50 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -571,7 +589,7 @@ useEffect(() => {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </MotionDiv>
             </>
           )}
         </AnimatePresence>

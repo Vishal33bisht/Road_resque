@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import api from '../api';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { getApiErrorMessage } from '../utils/errorHandler';
 
@@ -11,12 +11,15 @@ const normalizePhone = (phone) => {
 };
 
 export default function Register() {
+  const [searchParams] = useSearchParams();
+  const requestedRole = searchParams.get('role');
+  const initialRole = requestedRole === 'mechanic' ? 'mechanic' : 'user';
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
-    role: "user"
+    role: initialRole
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

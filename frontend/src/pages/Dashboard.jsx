@@ -1,8 +1,8 @@
 // src/pages/Dashboard.jsx
 import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import DriverDashboard from "../components/DriverDashboard";
-import MechanicDashboard from "../components/MechanicDashboard"; // <--- IMPORT THIS!
+import { AuthContext } from "../context/auth-context";
+import DriverDashboard from "./DriverDashboard";
+import MechanicDashboard from "./MechanicDashboard";
 import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {

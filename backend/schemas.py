@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 from typing import Optional
 import re
@@ -22,7 +22,8 @@ class UserCreate(BaseModel):
 
         return normalized
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
@@ -32,20 +33,30 @@ class UserCreate(BaseModel):
             raise ValueError('Password must contain at least one uppercase letter')
         return v
 
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        value = v.lower().strip()
+        if value not in ['user', 'mechanic']:
+            raise ValueError('Role must be user or mechanic')
+        return value
+
 class RequestCreate(BaseModel):
     vehicle_type: str
     problem_desc: str = Field(..., min_length=10, max_length=500)
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
     
-    @validator('vehicle_type')
+    @field_validator('vehicle_type')
+    @classmethod
     def validate_vehicle_type(cls, v):
         v = v.lower().strip()
         if v not in ['car', 'bike', 'truck']:
             raise ValueError('Vehicle type must be car, bike, or truck')
         return v
     
-    @validator('lat')
+    @field_validator('lat')
+    @classmethod
     def validate_latitude(cls, v):
         if not (-90 <= v <= 90):
             raise ValueError('Invalid latitude')
@@ -53,7 +64,8 @@ class RequestCreate(BaseModel):
             raise ValueError('Location not detected')
         return v
     
-    @validator('lng')
+    @field_validator('lng')
+    @classmethod
     def validate_longitude(cls, v):
         if not (-180 <= v <= 180):
             raise ValueError('Invalid longitude')

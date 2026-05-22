@@ -86,7 +86,7 @@ const DriverDashboard = () => {
       return;
     }
 
-    if (problemDesc.length < 5) {
+    if (problemDesc.trim().length < 10) {
       toast.error('Please describe your problem in detail');
       return;
     }
@@ -438,7 +438,7 @@ const DriverDashboard = () => {
               placeholder="e.g., Flat tire, battery dead, engine not starting..."
               rows={4}
               required
-              minLength={5}
+              minLength={10}
               className="form-textarea"
             />
             <p className="input-hint">{problemDesc.length}/500 characters</p>

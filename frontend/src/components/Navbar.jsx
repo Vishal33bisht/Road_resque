@@ -1,14 +1,13 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 
 export default function Navbar() {
     const navigate = useNavigate();
-    const location = useLocation();
     const role = localStorage.getItem("role");
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const { user, logout } = useContext(AuthContext);
+    const { logout } = useContext(AuthContext);
 
 const handleLogout = () => {
         logout();
