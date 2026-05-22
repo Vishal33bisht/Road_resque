@@ -20,13 +20,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Roadside Rescue API")
 
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-origins = ["*"]
+allowed_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[origin.strip() for origin in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,10 +132,10 @@ def create_request(request: Request,request_data: schemas.RequestCreate,
     
     new_request = models.ServiceRequest(
         customer_id=current_user.id,
-        vehicle_type=request.vehicle_type,
-        problem_desc=request.problem_desc,
-        lat=request.lat,
-        lng=request.lng,
+        vehicle_type=request_data.vehicle_type,
+        problem_desc=request_data.problem_desc,
+        lat=request_data.lat,
+        lng=request_data.lng,
         status="Pending"
     )
     db.add(new_request)

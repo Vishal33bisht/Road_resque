@@ -1,7 +1,9 @@
+import React from 'react';
+
 class ErrorBoundary extends React.Component {
   state = { hasError: false };
   
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
   
@@ -12,3 +14,5 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+export default ErrorBoundary;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -11,7 +11,10 @@ import { toast } from 'react-hot-toast';
 import api from '../api';
 import './DriverDashboard.css';
 import 'leaflet/dist/leaflet.css';
-//const [lastFetchTime, setLastFetchTime] = useState(0);
+
+const MotionHeader = motion.header;
+const MotionButton = motion.button;
+const MotionDiv = motion.div;
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +23,8 @@ const DriverDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const lastFetchTimeRef = useRef(lastFetchTime);
   
   // New Request Form State
   const [vehicleType, setVehicleType] = useState('car');
@@ -50,7 +55,7 @@ const DriverDashboard = () => {
             lng: position.coords.longitude
           });
         },
-        (error) => {
+        () => {
           toast.error('Please enable location services');
         }
       );
@@ -59,7 +64,9 @@ const DriverDashboard = () => {
 
   const fetchRequests = async () => {
     const now = Date.now();
-  if (now - lastFetchTime < 3000) return;
+    if (now - lastFetchTimeRef.current < 3000) return;
+    lastFetchTimeRef.current = now;
+    setLastFetchTime(now);
   
     try {
       const response = await api.get('/my-requests');
@@ -112,7 +119,7 @@ const DriverDashboard = () => {
       await api.post(`/requests/${requestId}/cancel`);
       toast.success('Request cancelled');
       fetchRequests();
-    } catch (error) {
+    } catch {
       toast.error('Failed to cancel request');
     }
   };
@@ -168,7 +175,7 @@ const DriverDashboard = () => {
   return (
     <div className="driver-dashboard">
       {/* Header */}
-      <motion.header 
+      <MotionHeader 
         className="dashboard-header glass-effect"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -197,12 +204,12 @@ const DriverDashboard = () => {
             </button>
           </div>
         </div>
-      </motion.header>
+      </MotionHeader>
 
       <div className="dashboard-container">
         {/* Tabs */}
         <div className="tabs-container">
-          <motion.button
+          <MotionButton
             className={`tab ${activeTab === 'active' ? 'active' : ''}`}
             onClick={() => setActiveTab('active')}
             whileHover={{ scale: 1.02 }}
@@ -210,8 +217,8 @@ const DriverDashboard = () => {
           >
             <Clock className="w-5 h-5" />
             Active ({activeRequests.length})
-          </motion.button>
-          <motion.button
+          </MotionButton>
+          <MotionButton
             className={`tab ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => setActiveTab('history')}
             whileHover={{ scale: 1.02 }}
@@ -219,13 +226,13 @@ const DriverDashboard = () => {
           >
             <History className="w-5 h-5" />
             History ({historyRequests.length})
-          </motion.button>
+          </MotionButton>
         </div>
 
         {/* Content */}
         <AnimatePresence mode="wait">
           {loading ? (
-            <motion.div 
+            <MotionDiv 
               className="loading-state"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -233,9 +240,9 @@ const DriverDashboard = () => {
             >
               <Loader className="spinner" />
               <p>Loading requests...</p>
-            </motion.div>
+            </MotionDiv>
           ) : (
-            <motion.div
+            <MotionDiv
               key={activeTab}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -258,7 +265,7 @@ const DriverDashboard = () => {
                   </div>
                 ) : (
                   activeRequests.map((request) => (
-                    <motion.div
+                    <MotionDiv
                       key={request.id}
                       className="request-card glass-effect"
                       initial={{ opacity: 0, y: 20 }}
@@ -283,7 +290,7 @@ const DriverDashboard = () => {
                         </div>
 
                         {request.mechanic && (
-                          <motion.div 
+                          <MotionDiv 
                             className="mechanic-info"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -304,7 +311,7 @@ const DriverDashboard = () => {
                               <Phone className="w-4 h-4" />
                               Call Mechanic
                             </a>
-                          </motion.div>
+                          </MotionDiv>
                         )}
 
                         <div className="request-meta">
@@ -330,7 +337,7 @@ const DriverDashboard = () => {
                           </button>
                         </div>
                       )}
-                    </motion.div>
+                    </MotionDiv>
                   ))
                 )
               ) : (
@@ -342,7 +349,7 @@ const DriverDashboard = () => {
                   </div>
                 ) : (
                   historyRequests.map((request) => (
-                    <motion.div
+                    <MotionDiv
                       key={request.id}
                       className="request-card glass-effect history-card"
                       initial={{ opacity: 0, y: 20 }}
@@ -366,11 +373,11 @@ const DriverDashboard = () => {
                           <span>{new Date(request.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
-                    </motion.div>
+                    </MotionDiv>
                   ))
                 )
               )}
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>
@@ -379,14 +386,14 @@ const DriverDashboard = () => {
 {/* New Request Modal */}
 <AnimatePresence>
   {showNewRequest && (
-    <motion.div 
+    <MotionDiv 
       className="modal-overlay"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={() => setShowNewRequest(false)}
     >
-      <motion.div 
+      <MotionDiv 
         className="modal-content glass-effect"
         initial={{ opacity: 0, scale: 0.9, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -408,7 +415,7 @@ const DriverDashboard = () => {
             <label>Vehicle Type</label>
             <div className="vehicle-selector">
               {['car', 'bike', 'truck'].map((type) => (
-                <motion.button
+                <MotionButton
                   key={type}
                   type="button"
                   className={`vehicle-option ${vehicleType === type ? 'selected' : ''}`}
@@ -418,7 +425,7 @@ const DriverDashboard = () => {
                 >
                   <VehicleIcon type={type} />
                   <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
-                </motion.button>
+                </MotionButton>
               ))}
             </div>
           </div>
@@ -475,8 +482,8 @@ const DriverDashboard = () => {
             </button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </MotionDiv>
+    </MotionDiv>
   )}
 </AnimatePresence>
     </div>
