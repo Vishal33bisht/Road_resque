@@ -113,18 +113,17 @@ async def update_mechanic_location(
     )
 
     for job in active_jobs:
-        await request_location_manager.broadcast(
-            job.id,
-            {
-                "type": "mechanic_location",
-                "request_id": job.id,
-                "mechanic_id": current_user.id,
-                "lat": lat,
-                "lng": lng,
-                "distance_km": round(calculate_distance(job.lat, job.lng, lat, lng), 1),
-                "status": job.status,
-            },
-        )
+        payload = {
+            "type": "mechanic_location",
+            "request_id": job.id,
+            "mechanic_id": current_user.id,
+            "lat": lat,
+            "lng": lng,
+            "distance_km": round(calculate_distance(job.lat, job.lng, lat, lng), 1),
+            "status": job.status,
+        }
+        await request_location_manager.broadcast(job.id, payload)
+        await request_location_manager.broadcast_to_user(job.customer_id, payload)
 
     return {"message": "Location updated", "lat": lat, "lng": lng}
 

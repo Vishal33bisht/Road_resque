@@ -124,10 +124,10 @@ const DriverDashboard = () => {
     }
   }, []);
 
-  const getWebSocketUrl = useCallback((requestId) => {
+  const getWebSocketUrl = useCallback(() => {
     const baseUrl = new URL(api.defaults.baseURL || window.location.origin, window.location.origin);
     baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-    baseUrl.pathname = `/ws/requests/${requestId}/mechanic-location`;
+    baseUrl.pathname = '/ws/mechanic-locations';
     baseUrl.search = '';
     return baseUrl.toString();
   }, []);
@@ -222,16 +222,18 @@ const DriverDashboard = () => {
   useEffect(() => {
     if (trackedRequestIds.length === 0) return undefined;
 
-    const sockets = [];
+    let socket = null;
     let shouldReconnect = true;
+    const trackedRequestIdSet = new Set(trackedRequestIds);
 
-    const connectSocket = (requestId, attempt = 0) => {
-      const socket = new WebSocket(getWebSocketUrl(requestId));
-      sockets.push(socket);
+    const connectSocket = (attempt = 0) => {
+      socket = new WebSocket(getWebSocketUrl());
 
       socket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
+        if (payload.type === 'heartbeat') return;
         if (payload.type !== 'mechanic_location') return;
+        if (!trackedRequestIdSet.has(payload.request_id)) return;
 
         setLiveMechanicLocations((current) => ({
           ...current,
@@ -247,7 +249,7 @@ const DriverDashboard = () => {
       socket.onclose = () => {
         if (!shouldReconnect || attempt >= 3) return;
         const timer = window.setTimeout(() => {
-          connectSocket(requestId, attempt + 1);
+          connectSocket(attempt + 1);
         }, 1500 * (attempt + 1));
         reconnectTimersRef.current.push(timer);
       };
@@ -259,13 +261,13 @@ const DriverDashboard = () => {
       return socket;
     };
 
-    trackedRequestIds.forEach((requestId) => connectSocket(requestId));
+    connectSocket();
 
     return () => {
       shouldReconnect = false;
       reconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
       reconnectTimersRef.current = [];
-      sockets.forEach((socket) => socket.close());
+      socket?.close();
     };
   }, [trackedRequestIds, getWebSocketUrl]);
 

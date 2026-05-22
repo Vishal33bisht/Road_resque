@@ -10,7 +10,9 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///./test_roadside_rescue.db")
 import jwt
 from fastapi.testclient import TestClient
 
+import models
 from main import app
+from routers.requests import mechanic_payload_for_request
 from services import auth_service
 
 
@@ -92,3 +94,34 @@ def test_registration_cannot_self_assign_mechanic_role():
     assert response.status_code == 200
     assert response.json()["role"] == "user"
     assert response.json()["is_available"] is False
+
+
+def test_completed_request_does_not_expose_mechanic_live_coordinates():
+    mechanic = models.User(
+        id=2,
+        name="Mechanic",
+        email="mechanic@example.com",
+        phone="+911234567892",
+        password_hash="hash",
+        role="mechanic",
+        latitude=28.6139,
+        longitude=77.2090,
+        is_available=True,
+    )
+    request = models.ServiceRequest(
+        id=10,
+        customer_id=1,
+        mechanic_id=2,
+        vehicle_type="car",
+        problem_desc="Battery issue after trip",
+        lat=28.5,
+        lng=77.1,
+        status="Completed",
+    )
+    request.mechanic = mechanic
+
+    payload = mechanic_payload_for_request(request)
+
+    assert payload["latitude"] is None
+    assert payload["longitude"] is None
+    assert payload["distance_km"] is None
