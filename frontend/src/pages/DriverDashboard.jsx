@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, Loader, Navigation,
   AlertCircle, LogOut, History, Plus
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { toast } from 'react-hot-toast';
 import api from '../api';
 import './DriverDashboard.css';
@@ -15,6 +15,17 @@ import 'leaflet/dist/leaflet.css';
 const MotionHeader = motion.header;
 const MotionButton = motion.button;
 const MotionDiv = motion.div;
+
+const RecenterMap = ({ center }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!center) return;
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+
+  return null;
+};
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
@@ -26,6 +37,7 @@ const DriverDashboard = () => {
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
   const [liveMechanicLocations, setLiveMechanicLocations] = useState({});
+  const reconnectTimersRef = useRef([]);
   const [lastFetchTime, setLastFetchTime] = useState(0);
   const lastFetchTimeRef = useRef(lastFetchTime);
   
@@ -210,8 +222,12 @@ const DriverDashboard = () => {
   useEffect(() => {
     if (trackedRequestIds.length === 0) return undefined;
 
-    const sockets = trackedRequestIds.map((requestId) => {
+    const sockets = [];
+    let shouldReconnect = true;
+
+    const connectSocket = (requestId, attempt = 0) => {
       const socket = new WebSocket(getWebSocketUrl(requestId));
+      sockets.push(socket);
 
       socket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
@@ -228,10 +244,29 @@ const DriverDashboard = () => {
         }));
       };
 
-      return socket;
-    });
+      socket.onclose = () => {
+        if (!shouldReconnect || attempt >= 3) return;
+        const timer = window.setTimeout(() => {
+          connectSocket(requestId, attempt + 1);
+        }, 1500 * (attempt + 1));
+        reconnectTimersRef.current.push(timer);
+      };
 
-    return () => sockets.forEach((socket) => socket.close());
+      socket.onerror = () => {
+        socket.close();
+      };
+
+      return socket;
+    };
+
+    trackedRequestIds.forEach((requestId) => connectSocket(requestId));
+
+    return () => {
+      shouldReconnect = false;
+      reconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      reconnectTimersRef.current = [];
+      sockets.forEach((socket) => socket.close());
+    };
   }, [trackedRequestIds, getWebSocketUrl]);
 
   const calculateDistance = (lat1, lng1, lat2, lng2) => {
@@ -459,6 +494,7 @@ const DriverDashboard = () => {
                               zoom={13}
                               style={{ height: '220px', width: '100%', borderRadius: '12px' }}
                             >
+                              <RecenterMap center={[mechanicLocation.lat, mechanicLocation.lng]} />
                               <TileLayer
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; OpenStreetMap contributors'
