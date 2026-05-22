@@ -19,7 +19,6 @@ class UserCreate(BaseModel):
     email: EmailStr
     phone: str
     password: str = Field(..., min_length=8)
-    role: str
 
     @field_validator('phone', mode='before')
     @classmethod
@@ -37,14 +36,6 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_password(cls, v):
         return validate_password_strength(v)
-
-    @field_validator('role')
-    @classmethod
-    def validate_role(cls, v):
-        value = v.lower().strip()
-        if value not in ['user', 'mechanic']:
-            raise ValueError('Role must be user or mechanic')
-        return value
 
 class RequestCreate(BaseModel):
     vehicle_type: str

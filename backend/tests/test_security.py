@@ -72,3 +72,23 @@ def test_auth_requires_http_only_access_cookie():
     response = client.get("/my-requests", headers={"Authorization": f"Bearer {access}"})
 
     assert response.status_code == 401
+
+
+def test_registration_cannot_self_assign_mechanic_role():
+    client = TestClient(app)
+    email = f"mechanic-escalation-{uuid4()}@example.com"
+
+    response = client.post(
+        "/register",
+        json={
+            "name": "Privilege Tester",
+            "email": email,
+            "phone": "+911234567891",
+            "password": "StrongPass1",
+            "role": "mechanic",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["role"] == "user"
+    assert response.json()["is_available"] is False

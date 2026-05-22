@@ -38,10 +38,13 @@ export default function Register() {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
-        role: formData.role,
         phone: normalizePhone(`${normalizeCountryCode(formData.countryCode)}${formData.phone}`),
       });
-      toast.success("Registration successful! Please login.");
+      toast.success(
+        formData.role === 'mechanic'
+          ? "Account created. Mechanic access requires admin approval."
+          : "Registration successful! Please login."
+      );
       navigate('/login');
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Registration failed"));
@@ -105,6 +108,11 @@ export default function Register() {
                     🔧 Mechanic
                 </button>
             </div>
+            {formData.role === 'mechanic' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Mechanic access is reviewed by an admin after signup. Your account will start as a user.
+                </div>
+            )}
 
             {/* Inputs */}
             <div>

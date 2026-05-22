@@ -86,8 +86,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         phone=user.phone,
         password_hash=hashed_password,
-        role=user.role,
-        is_available=(user.role == "mechanic"),
+        role="user",
+        is_available=False,
     )
 
     db.add(new_user)
