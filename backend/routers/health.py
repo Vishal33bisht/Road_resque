@@ -11,6 +11,9 @@ router = APIRouter(tags=["health"])
 def read_root():
     return {"message": "Welcome to roadside rescue API"}
 
+@router.get("/health")
+def health_check():
+    return {"status":"ok"}
 
 @router.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
