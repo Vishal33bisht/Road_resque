@@ -1,9 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import jwt
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from config import get_settings
 from database import get_db
 import models
 import schemas
@@ -12,6 +14,62 @@ from services import auth_service
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger(__name__)
+settings = get_settings()
+
+
+def user_payload(user: models.User) -> dict:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "phone": user.phone,
+        "role": user.role,
+        "is_available": user.is_available,
+    }
+
+
+def set_token_cookie(response: Response, key: str, value: str, max_age: int) -> None:
+    response.set_cookie(
+        key=key,
+        value=value,
+        max_age=max_age,
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite=settings.cookie_samesite,
+        path="/",
+    )
+
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    set_token_cookie(
+        response,
+        "access_token",
+        access_token,
+        settings.access_token_expire_minutes * 60,
+    )
+    set_token_cookie(
+        response,
+        "refresh_token",
+        refresh_token,
+        settings.refresh_token_expire_days * 24 * 60 * 60,
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite=settings.cookie_samesite,
+        path="/",
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite=settings.cookie_samesite,
+        path="/",
+    )
 
 
 @router.post("/register", response_model=schemas.UserResponse)
@@ -42,6 +100,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @limiter.limit("10/minute")
 def login(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -59,4 +118,73 @@ def login(
     access_token = auth_service.create_access_token(
         data={"sub": str(user.id), "role": user.role, "name": user.name}
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    refresh_token = auth_service.create_refresh_token(data={"sub": str(user.id)})
+    set_auth_cookies(response, access_token, refresh_token)
+    return {
+        "expires_in": settings.access_token_expire_minutes * 60,
+        "user": user_payload(user),
+    }
+
+
+@router.post("/refresh")
+def refresh_token(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            auth_service.SECRET_KEY,
+            algorithms=[auth_service.ALGORITHM],
+        )
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        user_id = int(payload.get("sub"))
+    except (jwt.PyJWTError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from exc
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    access_token = auth_service.create_access_token(
+        data={"sub": str(user.id), "role": user.role, "name": user.name}
+    )
+    rotated_refresh_token = auth_service.create_refresh_token(data={"sub": str(user.id)})
+    set_auth_cookies(response, access_token, rotated_refresh_token)
+    return {
+        "expires_in": settings.access_token_expire_minutes * 60,
+        "user": user_payload(user),
+    }
+
+
+@router.post("/logout")
+def logout(response: Response):
+    clear_auth_cookies(response)
+    return {"message": "Logged out"}
+
+
+@router.get("/me")
+def me(access_token: str | None = Cookie(default=None), db: Session = Depends(get_db)):
+    if not access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = jwt.decode(
+            access_token,
+            auth_service.SECRET_KEY,
+            algorithms=[auth_service.ALGORITHM],
+        )
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        user_id = int(payload.get("sub"))
+    except (jwt.PyJWTError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return user_payload(user)

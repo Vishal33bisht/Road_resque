@@ -181,8 +181,7 @@ useEffect(() => {
     };
 
     const handleLogout = () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
+      api.post('/logout').catch(() => {});
       navigate('/login');
       toast.success('Logged out successfully');
     };

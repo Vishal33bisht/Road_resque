@@ -1,249 +1,215 @@
+import { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Car, MapPin, Clock, Shield, Zap } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  Car,
+  CheckCircle2,
+  Clock3,
+  MapPin,
+  Navigation,
+  PhoneCall,
+  ShieldCheck,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
+import { AuthContext } from '../context/auth-context';
 import './LandingPage.css';
 
-const MotionNav = motion.nav;
 const MotionDiv = motion.div;
-const MotionH1 = motion.h1;
-const MotionH2 = motion.h2;
-const MotionP = motion.p;
+const MotionSection = motion.section;
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user, loading } = useContext(AuthContext);
 
-  const features = [
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: "Instant Response",
-      desc: "Get help within minutes, 24/7"
-    },
-    {
-      icon: <MapPin className="w-8 h-8" />,
-      title: "Real-time Tracking",
-      desc: "Track mechanic location live"
-    },
-    {
-      icon: <Shield className="w-8 h-8" />,
-      title: "Verified Mechanics",
-      desc: "All mechanics are certified"
+  const goToDashboard = () => {
+    if (user?.role === 'mechanic') {
+      navigate('/mechanic-dashboard');
+      return;
     }
+    if (user?.role === 'user') {
+      navigate('/user-dashboard');
+      return;
+    }
+    navigate('/login');
+  };
+
+  const liveJobs = [
+    { vehicle: 'Car', issue: 'Battery jump start', eta: '6 min', status: 'Accepted' },
+    { vehicle: 'Bike', issue: 'Flat tyre support', eta: '11 min', status: 'En Route' },
+    { vehicle: 'Truck', issue: 'Engine diagnostic', eta: '18 min', status: 'Pending' },
   ];
 
   return (
-    <div className="landing-container">
-      {/* Animated Background */}
-      <div className="animated-bg">
-        <div className="gradient-orb orb-1"></div>
-        <div className="gradient-orb orb-2"></div>
-        <div className="gradient-orb orb-3"></div>
-      </div>
+    <div className="landing-shell">
+      <nav className="landing-nav">
+        <button className="brand-lockup" onClick={() => navigate('/')} type="button">
+          <span className="brand-mark">
+            <Car size={22} />
+          </span>
+          <span>Roadside Rescue</span>
+        </button>
 
-      {/* Navigation */}
-      <MotionNav 
-        className="navbar glass-effect"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="nav-content">
-          <div className="logo-section">
-            <Car className="logo-icon" />
-            <span className="logo-text">Roadside Rescue</span>
-          </div>
-          <div className="nav-buttons">
-            <button 
-              className="btn-secondary"
-              onClick={() => navigate('/login')}
-            >
-              Login
+        <div className="nav-actions">
+          {!loading && user ? (
+            <button className="nav-primary" onClick={goToDashboard} type="button">
+              Dashboard
+              <ArrowRight size={18} />
             </button>
-            <button 
-              className="btn-primary"
-              onClick={() => navigate('/register')}
-            >
-              Get Started
-            </button>
-          </div>
+          ) : (
+            <>
+              <button className="nav-ghost" onClick={() => navigate('/login')} type="button">
+                Login
+              </button>
+              <button className="nav-primary" onClick={() => navigate('/register')} type="button">
+                Sign Up
+                <ArrowRight size={18} />
+              </button>
+            </>
+          )}
         </div>
-      </MotionNav>
+      </nav>
 
-      {/* Hero Section */}
-      <section className="hero-section">
-        <MotionDiv 
-          className="hero-content"
-          initial={{ opacity: 0, y: 50 }}
+      <main>
+        <MotionSection
+          className="hero-dashboard"
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.55 }}
         >
-          <MotionH1 
-            className="hero-title"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            Stranded on the Road?
-            <span className="gradient-text"> Help is Here.</span>
-          </MotionH1>
-          
-          <MotionP 
-            className="hero-subtitle"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            Connect with nearby mechanics instantly. Get back on the road in minutes, not hours.
-          </MotionP>
-
-          <MotionDiv 
-            className="hero-cta"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-          >
-            <button 
-              className="cta-button primary"
-              onClick={() => navigate('/register?role=user')}
-            >
-              <span>I Need Help</span>
-              <Car className="ml-2" />
-            </button>
-            <button 
-              className="cta-button secondary"
-              onClick={() => navigate('/register?role=mechanic')}
-            >
-              <span>I'm a Mechanic</span>
-              <Wrench className="ml-2" />
-            </button>
-          </MotionDiv>
-
-          {/* Stats */}
-          <MotionDiv 
-            className="stats-row"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
-          >
-            <div className="stat-item">
-              <h3>5 min</h3>
-              <p>Avg Response Time</p>
+          <div className="hero-copy">
+            <div className="eyebrow">
+              <Sparkles size={16} />
+              Smart roadside assistance dashboard
             </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <h3>500+</h3>
-              <p>Verified Mechanics</p>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <h3>24/7</h3>
-              <p>Always Available</p>
-            </div>
-          </MotionDiv>
-        </MotionDiv>
+            <h1>Roadside Rescue</h1>
+            <p>
+              Request help, track mechanics live, and manage roadside jobs from one fast,
+              secure dashboard.
+            </p>
 
-        {/* Hero Image/Animation */}
-        <MotionDiv 
-          className="hero-visual"
-          initial={{ opacity: 0, x: 100 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
-          <div className="floating-card">
-            <div className="card-content">
-              <div className="pulse-dot"></div>
-              <p className="card-text">Mechanic is 2 km away</p>
+            <div className="hero-actions">
+              <button className="hero-primary" onClick={() => navigate('/register?role=user')} type="button">
+                I Need Help
+                <Car size={20} />
+              </button>
+              <button className="hero-secondary" onClick={() => navigate('/register?role=mechanic')} type="button">
+                Join as Mechanic
+                <Wrench size={20} />
+              </button>
+            </div>
+
+            <div className="trust-strip" aria-label="Platform metrics">
+              <div>
+                <strong>24/7</strong>
+                <span>Live dispatch</span>
+              </div>
+              <div>
+                <strong>30m</strong>
+                <span>Secure sessions</span>
+              </div>
+              <div>
+                <strong>500+</strong>
+                <span>Mechanic network</span>
+              </div>
             </div>
           </div>
-        </MotionDiv>
-      </section>
 
-      {/* Features Section */}
-      <section className="features-section">
-        <MotionH2 
-          className="section-title"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          Why Choose Us?
-        </MotionH2>
-        
-        <div className="features-grid">
-          {features.map((feature, index) => (
-            <MotionDiv
-              key={index}
-              className="feature-card glass-effect"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.2 }}
-              whileHover={{ y: -10, scale: 1.02 }}
-            >
-              <div className="feature-icon">{feature.icon}</div>
-              <h3>{feature.title}</h3>
-              <p>{feature.desc}</p>
-            </MotionDiv>
-          ))}
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="how-it-works">
-        <MotionH2 
-          className="section-title"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          How It Works
-        </MotionH2>
-        
-        <div className="steps-container">
-          {[
-            { step: "1", title: "Request Help", desc: "Tap the button and describe your problem" },
-            { step: "2", title: "Get Matched", desc: "We find the nearest available mechanic" },
-            { step: "3", title: "Track Arrival", desc: "Watch them arrive in real-time" },
-            { step: "4", title: "Get Fixed", desc: "Your vehicle is ready to go!" }
-          ].map((item, index) => (
-            <MotionDiv
-              key={index}
-              className="step-card"
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.15 }}
-            >
-              <div className="step-number">{item.step}</div>
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-            </MotionDiv>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="final-cta">
-        <MotionDiv 
-          className="cta-card glass-effect"
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
-          <h2>Ready to Get Started?</h2>
-          <p>Join thousands of users and mechanics already using our platform</p>
-          <button 
-            className="cta-button primary large"
-            onClick={() => navigate('/register')}
+          <MotionDiv
+            className="dashboard-preview"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
           >
-            Sign Up Free
-          </button>
-        </MotionDiv>
-      </section>
+            <div className="preview-topbar">
+              <div>
+                <span className="preview-label">Control Center</span>
+                <h2>Live Roadside Desk</h2>
+              </div>
+              <span className="online-pill">
+                <Activity size={15} />
+                Online
+              </span>
+            </div>
 
-      {/* Footer */}
-      <footer className="footer">
-        <p>© 2026 Roadside Rescue. Help is on the way.</p>
-      </footer>
+            <div className="status-grid">
+              <div className="metric-card urgent">
+                <Clock3 size={22} />
+                <span>Avg ETA</span>
+                <strong>9 min</strong>
+              </div>
+              <div className="metric-card calm">
+                <ShieldCheck size={22} />
+                <span>Secure auth</span>
+                <strong>HttpOnly</strong>
+              </div>
+            </div>
+
+            <div className="map-panel">
+              <div className="route-line" />
+              <span className="map-pin driver">
+                <Car size={16} />
+              </span>
+              <span className="map-pin mechanic">
+                <Wrench size={16} />
+              </span>
+              <div className="arrival-card">
+                <Navigation size={18} />
+                <div>
+                  <strong>Mechanic arriving</strong>
+                  <span>2.4 km away</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="jobs-list">
+              {liveJobs.map((job) => (
+                <div className="job-row" key={`${job.vehicle}-${job.issue}`}>
+                  <div className="job-icon">
+                    <Wrench size={18} />
+                  </div>
+                  <div>
+                    <strong>{job.issue}</strong>
+                    <span>{job.vehicle} service</span>
+                  </div>
+                  <div className="job-meta">
+                    <span>{job.eta}</span>
+                    <small>{job.status}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MotionDiv>
+        </MotionSection>
+
+        <section className="quick-actions">
+          {[
+            {
+              icon: <PhoneCall size={24} />,
+              title: 'Request assistance',
+              text: 'Create a service request with location, vehicle type, and issue details.',
+            },
+            {
+              icon: <MapPin size={24} />,
+              title: 'Track live arrival',
+              text: 'Follow assigned mechanic location in real time from the customer dashboard.',
+            },
+            {
+              icon: <CheckCircle2 size={24} />,
+              title: 'Complete the job',
+              text: 'Mechanics accept, start, complete, and manage active work cleanly.',
+            },
+          ].map((item) => (
+            <MotionDiv className="action-card" key={item.title} whileHover={{ y: -6 }}>
+              <div className="action-icon">{item.icon}</div>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </MotionDiv>
+          ))}
+        </section>
+      </main>
     </div>
   );
 };

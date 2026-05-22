@@ -27,6 +27,9 @@ def toggle_availability(
     if current_user.role != "mechanic":
         raise HTTPException(status_code=403, detail="Not authorized")
 
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="Invalid coordinates")
+
     current_user.is_available = not current_user.is_available
     current_user.latitude = lat
     current_user.longitude = lng

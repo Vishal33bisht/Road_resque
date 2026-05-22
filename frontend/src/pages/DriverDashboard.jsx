@@ -113,12 +113,10 @@ const DriverDashboard = () => {
   }, []);
 
   const getWebSocketUrl = useCallback((requestId) => {
-    const token = localStorage.getItem('token');
     const baseUrl = new URL(api.defaults.baseURL || window.location.origin, window.location.origin);
     baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     baseUrl.pathname = `/ws/requests/${requestId}/mechanic-location`;
     baseUrl.search = '';
-    baseUrl.searchParams.set('token', token);
     return baseUrl.toString();
   }, []);
 
@@ -189,8 +187,7 @@ const DriverDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+    api.post('/logout').catch(() => {});
     navigate('/login');
     toast.success('Logged out successfully');
   };

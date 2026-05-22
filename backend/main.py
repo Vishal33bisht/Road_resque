@@ -1,18 +1,19 @@
 import logging
-import os
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from config import get_settings
 from database import engine
 import models
 from rate_limit import limiter
 from routers import auth, health, mechanic, requests
 
-load_dotenv()
+settings = get_settings()
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -35,8 +36,35 @@ DEFAULT_CORS_ORIGINS = (
 
 
 def parse_cors_origins() -> list[str]:
-    origins = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
-    return [origin.strip().rstrip("/") for origin in origins if origin.strip()]
+    return settings.cors_origins
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(self)")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+        )
+        return response
+
+
+class CsrfHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
+        exempt_paths = {"/login", "/register", "/refresh", "/logout"}
+        if request.method in unsafe_methods and request.url.path not in exempt_paths:
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+                return JSONResponse({"detail": "CSRF validation failed"}, status_code=403)
+        return await call_next(request)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CsrfHeaderMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

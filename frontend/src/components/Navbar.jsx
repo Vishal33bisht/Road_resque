@@ -5,12 +5,12 @@ import { AuthContext } from "../context/auth-context";
 
 export default function Navbar() {
     const navigate = useNavigate();
-    const role = localStorage.getItem("role");
+    const { user, logout } = useContext(AuthContext);
+    const role = user?.role;
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const { logout } = useContext(AuthContext);
 
-const handleLogout = () => {
-        logout();
+const handleLogout = async () => {
+        await logout();
         navigate("/login");
     };
 

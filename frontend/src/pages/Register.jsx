@@ -10,6 +10,11 @@ const normalizePhone = (phone) => {
   return trimmed.startsWith('+') ? `+${digits}` : digits;
 };
 
+const normalizeCountryCode = (code) => {
+  const digits = code.replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
+};
+
 export default function Register() {
   const [searchParams] = useSearchParams();
   const requestedRole = searchParams.get('role');
@@ -17,6 +22,7 @@ export default function Register() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    countryCode: "+91",
     phone: "",
     password: "",
     role: initialRole
@@ -29,10 +35,11 @@ export default function Register() {
     setLoading(true);
     try {
       await api.post("/register", {
-        ...formData,
         name: formData.name.trim(),
         email: formData.email.trim(),
-        phone: normalizePhone(formData.phone),
+        password: formData.password,
+        role: formData.role,
+        phone: normalizePhone(`${normalizeCountryCode(formData.countryCode)}${formData.phone}`),
       });
       toast.success("Registration successful! Please login.");
       navigate('/login');
@@ -126,14 +133,28 @@ export default function Register() {
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input 
-                    type="tel" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+91"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    required
-                />
+                <div className="flex gap-2">
+                    <input
+                        type="tel"
+                        inputMode="tel"
+                        className="w-24 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="+91"
+                        aria-label="Country code"
+                        value={formData.countryCode}
+                        onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
+                        required
+                    />
+                    <input
+                        type="tel"
+                        inputMode="tel"
+                        className="flex-1 min-w-0 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Phone number"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        required
+                    />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">You can edit the country code before signing up.</p>
             </div>
 
             <div>

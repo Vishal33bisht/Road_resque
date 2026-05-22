@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -5,15 +6,20 @@ import LandingPage from './pages/LandingPage';
 import DriverDashboard from "./pages/DriverDashboard";
 import MechanicDashboard from "./pages/MechanicDashboard";
 import { AuthProvider } from "./context/AuthContext";
+import { AuthContext } from "./context/auth-context";
 import { Toaster } from 'react-hot-toast';
 
 // Protected Route Component
 function ProtectedRoute({ children, allowedRole }) {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
+    const { user, loading } = useContext(AuthContext);
+    const role = user?.role;
+
+    if (loading) {
+        return null;
+    }
 
     // Not logged in
-    if (!token) {
+    if (!user) {
         return <Navigate to="/login" />;
     }
 
@@ -26,8 +32,6 @@ function ProtectedRoute({ children, allowedRole }) {
         }
         else {
         // If role is missing or unknown, force logout/login
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
         return <Navigate to="/login" />;
     }
     }
@@ -37,10 +41,14 @@ function ProtectedRoute({ children, allowedRole }) {
 
 // Redirect logged-in users away from login/register
 function PublicRoute({ children }) {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
+    const { user, loading } = useContext(AuthContext);
+    const role = user?.role;
 
-    if (token) {
+    if (loading) {
+        return null;
+    }
+
+    if (user) {
         if (role === "mechanic") {
             return <Navigate to="/mechanic-dashboard" />;
         } else {
@@ -51,13 +59,27 @@ function PublicRoute({ children }) {
     return children;
 }
 
+function DashboardRedirect() {
+    const { user, loading } = useContext(AuthContext);
+
+    if (loading) {
+        return null;
+    }
+
+    if (user?.role === "mechanic") {
+        return <Navigate to="/mechanic-dashboard" />;
+    }
+
+    return <Navigate to="/user-dashboard" />;
+}
+
 function App() {
     return (
         <AuthProvider>
             <Toaster position="top-center" />
             <Routes>
-                {/* Default - Redirect to login */}
-                <Route path="/" element={<Navigate to="/login" />} />
+                {/* Public dashboard */}
+                <Route path="/" element={<LandingPage />} />
 
                 {/* Public Routes */}
                 <Route 
@@ -101,10 +123,7 @@ function App() {
                     path="/dashboard" 
                     element={
                         <ProtectedRoute>
-                            {localStorage.getItem("role") === "mechanic" 
-                                ? <Navigate to="/mechanic-dashboard" />
-                                : <Navigate to="/user-dashboard" />
-                            }
+                            <DashboardRedirect />
                         </ProtectedRoute>
                     } 
                 />

@@ -150,6 +150,15 @@ def reject_request(
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
 
+    if req.status == "Pending" and req.mechanic_id is None:
+        return {"status": "ignored"}
+
+    if req.mechanic_id != current_user.id:
+        raise HTTPException(status_code=403, detail="This job is not assigned to you")
+
+    if not validate_status_transition(req.status, "Rejected"):
+        raise HTTPException(status_code=400, detail=f"Cannot reject from status '{req.status}'")
+
     req.status = "Rejected"
     current_user.is_available = True
 
@@ -245,7 +254,7 @@ def get_request(
 
 @router.websocket("/ws/requests/{request_id}/mechanic-location")
 async def mechanic_location_socket(websocket: WebSocket, request_id: int):
-    token = websocket.query_params.get("token")
+    token = websocket.cookies.get("access_token")
     if not token:
         await websocket.close(code=1008)
         return

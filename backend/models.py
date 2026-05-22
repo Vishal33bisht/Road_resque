@@ -1,4 +1,4 @@
-from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,DateTime
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String
 from database import Base
 from datetime import datetime
 from sqlalchemy.orm import relationship
@@ -59,3 +59,9 @@ class ServiceRequest(Base):
         foreign_keys=[mechanic_id],
         back_populates="mechanic_requests",
     )
+
+
+Index("idx_service_requests_status_created", ServiceRequest.status, ServiceRequest.created_at.desc())
+Index("idx_service_requests_customer_created", ServiceRequest.customer_id, ServiceRequest.created_at.desc())
+Index("idx_service_requests_mechanic_status", ServiceRequest.mechanic_id, ServiceRequest.status)
+Index("idx_users_mechanic_available", User.role, User.is_available)

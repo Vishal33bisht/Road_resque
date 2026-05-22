@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from datetime import datetime
 from typing import Optional
 import re
@@ -79,6 +79,8 @@ class RequestCreate(BaseModel):
         return v
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     email: str
@@ -86,10 +88,9 @@ class UserResponse(BaseModel):
     role: str
     is_available: bool
 
-    class Config:
-        from_attributes = True
-
 class RequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     customer_id: int
     mechanic_id: Optional[int] = None
@@ -100,9 +101,6 @@ class RequestResponse(BaseModel):
     status: str
     created_at: datetime
     distance_km: Optional[float] = None
-
-    class Config:
-        from_attributes = True
 
 class MechanicInfo(BaseModel):
     id: int
