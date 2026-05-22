@@ -1,122 +1,83 @@
 Markdown
+# 🚗 Roadside Rescue Platform
 
-# 🚑 Roadside Resque
+A real-time, "Uber-like" web application connecting drivers in distress with nearby available mechanics. Built with a focus on scalable WebSocket architecture, robust geographic data processing, and enterprise-grade security.
 
-**Roadside Resque** is a full-stack web application designed to connect stranded drivers with nearby mechanics in real-time. It features role-based dashboards, geolocation tracking, and instant service requests to ensure help arrives quickly.
+## ✨ Key Features
 
-![Project Status](https://img.shields.io/badge/Status-Active-green)
-![License](https://img.shields.io/badge/License-MIT-blue)
+* **Real-Time Location Tracking:** Custom WebSocket multiplexing architecture pushes live mechanic coordinates to the user's map interface. Includes automated connection healing (exponential backoff) for unstable mobile networks.
+* **Dynamic Geographic Mapping:** Integrates `react-leaflet` to render interactive maps, plotting user locations and live-updating mechanic positions using dynamic Haversine distance calculations.
+* **Enterprise-Grade Security:**
+  * **Authentication:** Secure JWT implementation using `HttpOnly` cookies and automatic background token rotation via Axios interceptors. 
+  * **Protection:** Complete defense against BOLA/IDOR vulnerabilities, Cross-Site Request Forgery (CSRF), and strict HTTP security headers.
+  * **Rate Limiting:** Backend endpoints are protected by `slowapi` to prevent abuse and brute-force attacks.
+* **Polished User Experience:** Utilizes `framer-motion` for fluid, mobile-app-like page transitions, micro-interactions, and complex state management across multiple user roles (Drivers and Mechanics).
 
----
+## 🛠️ Technology Stack
 
-## 🌟 Features
+**Frontend**
+* React.js (Vite)
+* React-Leaflet (OpenStreetMap integration)
+* Framer Motion (Animations)
+* Axios (with custom interceptors)
 
-### 👤 For Drivers
-- **One-Click Assistance:** Request help for Cars, Bikes, or Trucks instantly.
-- **Real-Time Location:** Automatically detects your GPS location to share with mechanics.
-- **Live Status Updates:** Track your request status (Pending, Accepted, En Route, Completed).
-- **Request History:** View past service requests.
-- **Cancel Requests:** Ability to cancel a request if help is no longer needed.
+**Backend**
+* Python 3 & FastAPI
+* SQLAlchemy (ORM) & Alembic (Database Migrations)
+* WebSockets (Real-time bidirectional communication)
+* PyJWT & Passlib (Authentication & Hashing)
 
-### 🔧 For Mechanics
-- **Job Dashboard:** View nearby service requests with distance and problem details.
-- **Availability Toggle:** Go "Online" or "Offline" to control when you receive jobs.
-- **Interactive Map:** View the stranded driver's location on an embedded map.
-- **Job Management:** Accept, Reject, or Mark jobs as Completed.
-- **Celebration Effects:** Fun confetti animation upon successful job completion!
+## 🚀 Getting Started
 
----
+### Prerequisites
+* Python 3.10+
+* Node.js v18+
+* PostgreSQL or SQLite (configured via SQLAlchemy)
 
-## 🛠️ Tech Stack
-
-### **Frontend**
-- **Framework:** React (Vite)
-- **Styling:** Tailwind CSS
-- **State Management:** Context API
-- **Maps:** React Leaflet & OpenStreetMap
-- **Animations:** Framer Motion & React Confetti
-- **Notifications:** React Hot Toast
-- **HTTP Client:** Axios
-
-### **Backend**
-- **Framework:** FastAPI (Python)
-- **Database:** SQLite (via SQLAlchemy)
-- **Authentication:** JWT (JSON Web Tokens)
-- **Server:** Uvicorn
-
----
-
-## 🚀 Installation & Setup
-
-Follow these steps to run the project locally.
-
-### **Prerequisites**
-- Node.js (v16+)
-- Python (v3.9+)
-- Git
-
-### **1. Clone the Repository**
-git clone [https://github.com/yourusername/roadside-rescue.git](https://github.com/yourusername/roadside-rescue.git)
-cd roadside-rescue
-
-
-2. Backend Setup
-Navigate to the backend folder and set up the Python environment.
-
-cd backend
-
-# Create a virtual environment
-python -m venv venv
-
-# Activate the virtual environment
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install fastapi uvicorn sqlalchemy python-jose[cryptography] passlib[bcrypt] python-multipart
-
-# Run the server (Exposed to network)
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-The backend will start at http://0.0.0.0:8000 (accessible via your local IP).
-
-3. Frontend Setup
-Open a new terminal, navigate to the frontend folder, and install dependencies.
+### Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+Create and activate a virtual environment:
 
 Bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+Install dependencies:
 
+Bash
+pip install -r requirements.txt
+Configure your .env file (see .env.example for required variables like SECRET_KEY and Database URLs).
+
+Run database migrations:
+
+Bash
+alembic upgrade head
+Start the FastAPI server:
+
+Bash
+uvicorn main:app --reload
+Frontend Setup
+Navigate to the frontend directory:
+
+Bash
 cd frontend
+Install dependencies:
 
-# Install Node modules
+Bash
 npm install
+Configure your .env file to point to your backend API:
 
-# Install required UI libraries (if not already installed)
-npm install axios react-router-dom react-hot-toast react-leaflet leaflet framer-motion react-confetti
+Code snippet
+VITE_API_BASE_URL=http://localhost:8000
+Start the Vite development server:
 
-# Start the development server
+Bash
 npm run dev
-The frontend will start at http://localhost:5173.
+🔒 Security & Privacy Notes
+This platform prioritizes user data protection. Mechanic coordinates are strictly localized to active jobs and are completely nullified on the backend once a job transitions to Completed or Cancelled, ensuring privacy. Registration endpoints default strictly to least-privileged user roles to prevent horizontal privilege escalation.
 
+👨‍💻 Author
+Vishal Bisht
 
-📱 Running on Mobile (Local Network)
-To test the application on your phone:
-
-Ensure your phone and laptop are on the same Wi-Fi network.
-
-Find your laptop's Local IP address (Run ipconfig on Windows or ifconfig on Mac).
-
-Update frontend/src/api.js:
-
-JavaScript
-
-const api = axios.create({
-    baseURL: 'http://YOUR_LAPTOP_IP:8000', // e.g., 192.168.1.5:8000
-});
-Access the app on your phone via: http://YOUR_LAPTOP_IP:5173
-
-🤝 Contributing
-Contributions are welcome! Please fork the repository and create a pull request.
-
-📄 License
-This project is licensed under the MIT License.
+GitHub Profile
