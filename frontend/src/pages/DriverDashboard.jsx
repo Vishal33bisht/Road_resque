@@ -70,7 +70,7 @@ const DriverDashboard = () => {
   
     try {
       const response = await api.get('/my-requests');
-      setRequests(response.data);
+      setRequests(response.data.requests ?? response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching requests:', error);

@@ -3,6 +3,17 @@ from datetime import datetime
 from typing import Optional
 import re
 
+
+def validate_password_strength(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError('Password must be at least 8 characters')
+    if not any(char.isdigit() for char in v):
+        raise ValueError('Password must contain at least one digit')
+    if not any(char.isupper() for char in v):
+        raise ValueError('Password must contain at least one uppercase letter')
+    return v
+
+
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
@@ -25,13 +36,7 @@ class UserCreate(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
-        if not any(char.isdigit() for char in v):
-            raise ValueError('Password must contain at least one digit')
-        if not any(char.isupper() for char in v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        return v
+        return validate_password_strength(v)
 
     @field_validator('role')
     @classmethod
@@ -105,3 +110,10 @@ class MechanicInfo(BaseModel):
 
 class RequestWithMechanic(RequestResponse):
     mechanic: Optional[MechanicInfo] = None
+
+class PaginatedRequests(BaseModel):
+    requests: list[RequestWithMechanic]
+    total: int
+    page: int
+    pages: int
+    limit: int

@@ -1,8 +1,9 @@
 import logging
-from typing import List
+import math
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from database import get_db
 from dependencies import get_current_user
@@ -32,10 +33,12 @@ def toggle_availability(
     return {"is_available": current_user.is_available}
 
 
-@router.get("/mechanic/requests", response_model=List[schemas.RequestResponse])
+@router.get("/mechanic/requests", response_model=schemas.PaginatedRequests)
 @limiter.limit("60/minute")
 def get_nearby_requests(
     request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -43,14 +46,26 @@ def get_nearby_requests(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     if current_user.latitude is None or current_user.longitude is None:
-        return []
+        return {"requests": [], "total": 0, "page": page, "pages": 0, "limit": limit}
 
     logger.info("Mechanic %s requesting nearby jobs", current_user.name)
 
+    lat_range = 0.45
+    lng_range = 0.45
     pending_requests = (
         db.query(models.ServiceRequest)
-        .filter(models.ServiceRequest.status == "Pending")
-        .limit(50)
+        .filter(
+            models.ServiceRequest.status == "Pending",
+            models.ServiceRequest.lat.between(
+                current_user.latitude - lat_range,
+                current_user.latitude + lat_range,
+            ),
+            models.ServiceRequest.lng.between(
+                current_user.longitude - lng_range,
+                current_user.longitude + lng_range,
+            ),
+        )
+        .order_by(models.ServiceRequest.created_at.desc())
         .all()
     )
     logger.info("Total Pending Requests in DB: %s", len(pending_requests))
@@ -63,8 +78,18 @@ def get_nearby_requests(
         if dist < 50:
             nearby.append(req)
 
-    logger.info("Returning %s requests", len(nearby))
-    return nearby
+    total = len(nearby)
+    offset = (page - 1) * limit
+    paginated = nearby[offset:offset + limit]
+
+    logger.info("Returning %s requests", len(paginated))
+    return {
+        "requests": paginated,
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / limit) if total else 0,
+        "limit": limit,
+    }
 
 
 @router.post("/mechanic/update-location")
@@ -97,6 +122,7 @@ def get_active_job(
 
     active_job = (
         db.query(models.ServiceRequest)
+        .options(joinedload(models.ServiceRequest.customer))
         .filter(
             models.ServiceRequest.mechanic_id == current_user.id,
             models.ServiceRequest.status.in_(["Accepted", "En Route"]),
@@ -107,8 +133,6 @@ def get_active_job(
     if not active_job:
         return None
 
-    customer = db.query(models.User).filter(models.User.id == active_job.customer_id).first()
-
     return {
         "id": active_job.id,
         "vehicle_type": active_job.vehicle_type,
@@ -118,9 +142,9 @@ def get_active_job(
         "status": active_job.status,
         "created_at": active_job.created_at,
         "customer": {
-            "name": customer.name,
-            "phone": customer.phone,
+            "name": active_job.customer.name,
+            "phone": active_job.customer.phone,
         }
-        if customer
+        if active_job.customer
         else None,
     }

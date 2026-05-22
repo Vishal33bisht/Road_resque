@@ -15,6 +15,17 @@ class User(Base):
     is_available=Column(Boolean,default=False)
     latitude=Column(Float,nullable=True)
     longitude=Column(Float,nullable=True)
+
+    customer_requests = relationship(
+        "ServiceRequest",
+        foreign_keys="ServiceRequest.customer_id",
+        back_populates="customer",
+    )
+    mechanic_requests = relationship(
+        "ServiceRequest",
+        foreign_keys="ServiceRequest.mechanic_id",
+        back_populates="mechanic",
+    )
     
 class ServiceRequest(Base):
     __tablename__="service_requests"
@@ -37,3 +48,14 @@ class ServiceRequest(Base):
     
     estimated_price = Column(Float, nullable=True)
     final_price = Column(Float, nullable=True)
+
+    customer = relationship(
+        "User",
+        foreign_keys=[customer_id],
+        back_populates="customer_requests",
+    )
+    mechanic = relationship(
+        "User",
+        foreign_keys=[mechanic_id],
+        back_populates="mechanic_requests",
+    )

@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import math
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from database import get_db
 from dependencies import get_current_user
@@ -55,25 +58,28 @@ def create_request(
     return new_request
 
 
-@router.get("/my-requests")
+@router.get("/my-requests", response_model=schemas.PaginatedRequests)
 def get_my_requests(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    offset = (page - 1) * limit
+    query = db.query(models.ServiceRequest).filter(
+        models.ServiceRequest.customer_id == current_user.id
+    )
+    total = query.count()
     requests = (
-        db.query(models.ServiceRequest)
-        .filter(models.ServiceRequest.customer_id == current_user.id)
+        query.options(joinedload(models.ServiceRequest.mechanic))
         .order_by(models.ServiceRequest.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
-    result = []
-    for req in requests:
-        mechanic = None
-        if req.mechanic_id:
-            mechanic = db.query(models.User).filter(models.User.id == req.mechanic_id).first()
-
-        result.append(
+    return {
+        "requests": [
             {
                 "id": req.id,
                 "customer_id": req.customer_id,
@@ -84,11 +90,15 @@ def get_my_requests(
                 "lng": req.lng,
                 "status": req.status,
                 "created_at": req.created_at,
-                "mechanic": mechanic_payload(mechanic),
+                "mechanic": mechanic_payload(req.mechanic),
             }
-        )
-
-    return result
+            for req in requests
+        ],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / limit) if total else 0,
+        "limit": limit,
+    }
 
 
 @router.post("/requests/{request_id}/cancel")
@@ -202,10 +212,6 @@ def get_request(
     if req.customer_id != current_user.id and req.mechanic_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    mechanic = None
-    if req.mechanic_id:
-        mechanic = db.query(models.User).filter(models.User.id == req.mechanic_id).first()
-
     return {
         "id": req.id,
         "customer_id": req.customer_id,
@@ -216,7 +222,7 @@ def get_request(
         "lng": req.lng,
         "status": req.status,
         "created_at": req.created_at,
-        "mechanic": mechanic_payload(mechanic),
+        "mechanic": mechanic_payload(req.mechanic),
     }
 
 

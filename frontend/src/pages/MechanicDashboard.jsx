@@ -100,7 +100,7 @@ useEffect(() => {
     const fetchNearbyRequests = async () => {
       try {
         const response = await api.get('/mechanic/requests');
-        setNearbyRequests(response.data);
+        setNearbyRequests(response.data.requests ?? response.data);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching requests:', error);
