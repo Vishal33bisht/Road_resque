@@ -67,8 +67,6 @@ async def keep_server_push_socket_alive(websocket: WebSocket) -> None:
     while True:
         try:
             await asyncio.wait_for(websocket.receive_text(), timeout=30)
-            await websocket.close(code=1008)
-            return
         except asyncio.TimeoutError:
             await websocket.send_json({"type": "heartbeat"})
 
