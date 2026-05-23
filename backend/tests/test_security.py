@@ -117,14 +117,14 @@ def test_refresh_accepts_body_token_when_cookie_is_unavailable():
     assert response.json()["refresh_token"]
 
 
-def test_registration_cannot_self_assign_mechanic_role():
+def test_registration_can_create_mechanic_account():
     client = TestClient(app)
-    email = f"mechanic-escalation-{uuid4()}@example.com"
+    email = f"mechanic-signup-{uuid4()}@example.com"
 
     response = client.post(
         "/register",
         json={
-            "name": "Privilege Tester",
+            "name": "Mechanic Signup",
             "email": email,
             "phone": "+911234567891",
             "password": "StrongPass1",
@@ -133,7 +133,7 @@ def test_registration_cannot_self_assign_mechanic_role():
     )
 
     assert response.status_code == 200
-    assert response.json()["user"]["role"] == "user"
+    assert response.json()["user"]["role"] == "mechanic"
     assert response.json()["user"]["is_available"] is False
 
 

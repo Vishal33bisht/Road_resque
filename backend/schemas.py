@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     phone: str
     password: str = Field(..., min_length=8)
+    role: str = "user"
 
     @field_validator('phone', mode='before')
     @classmethod
@@ -36,6 +37,14 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_password(cls, v):
         return validate_password_strength(v)
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def validate_role(cls, v):
+        role = str(v or "user").lower().strip()
+        if role not in {"user", "mechanic"}:
+            raise ValueError('Role must be user or mechanic')
+        return role
 
 
 class RefreshRequest(BaseModel):

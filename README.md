@@ -28,8 +28,7 @@ Roadside Rescue is a full-stack roadside assistance app that connects drivers wi
 **Security highlights**
 - Access and refresh tokens are set in HttpOnly cookies when the browser accepts cross-site cookies.
 - Deployed/mobile browsers can also use returned JWTs as an Authorization fallback when Vercel and the API are on different domains.
-- Public signup always creates a normal user account.
-- Mechanic role must be granted by trusted admin/database workflow.
+- Public signup can create either a driver or mechanic account.
 - Mechanic coordinates are hidden for completed/cancelled/rejected/history jobs.
 - One multiplexed WebSocket sends all live mechanic updates for a user.
 - Security headers, CORS config, CSRF-style XHR header checks, rate limiting, and regression tests are included.
@@ -193,13 +192,13 @@ Also recommended:
 - Serve frontend over HTTPS.
 - Keep backend behind HTTPS/proxy.
 - Do not commit `.env`, logs, local DB files, `venv`, `node_modules`, or `dist`.
-- Add an admin-only mechanic approval flow before granting mechanic role.
+- Add identity/business verification before approving real-world mechanic operations.
 
 ## API Overview
 
 Core endpoints:
 
-- `POST /register` - Creates a normal user account.
+- `POST /register` - Creates a driver or mechanic account.
 - `POST /login` - Sets HttpOnly access/refresh cookies and returns fallback tokens.
 - `POST /refresh` - Rotates refresh token and issues a new access cookie/token pair.
 - `POST /logout` - Clears auth cookies.
@@ -212,87 +211,5 @@ Core endpoints:
 
 ## Current Status
 
-The app is ready for local development and structured for production deployment. The major security fixes are implemented, including hybrid cookie/token auth for mobile deployments, role escalation prevention, live-location privacy controls, and tests for critical paths.
-=======
-Markdown
-# 🚗 Roadside Rescue Platform
-
-A real-time, "Uber-like" web application connecting drivers in distress with nearby available mechanics. Built with a focus on scalable WebSocket architecture, robust geographic data processing, and enterprise-grade security.
-
-## ✨ Key Features
-
-* **Real-Time Location Tracking:** Custom WebSocket multiplexing architecture pushes live mechanic coordinates to the user's map interface. Includes automated connection healing (exponential backoff) for unstable mobile networks.
-* **Dynamic Geographic Mapping:** Integrates `react-leaflet` to render interactive maps, plotting user locations and live-updating mechanic positions using dynamic Haversine distance calculations.
-* **Enterprise-Grade Security:**
-  * **Authentication:** Secure JWT implementation using `HttpOnly` cookies and automatic background token rotation via Axios interceptors. 
-  * **Protection:** Complete defense against BOLA/IDOR vulnerabilities, Cross-Site Request Forgery (CSRF), and strict HTTP security headers.
-  * **Rate Limiting:** Backend endpoints are protected by `slowapi` to prevent abuse and brute-force attacks.
-* **Polished User Experience:** Utilizes `framer-motion` for fluid, mobile-app-like page transitions, micro-interactions, and complex state management across multiple user roles (Drivers and Mechanics).
-
-## 🛠️ Technology Stack
-
-**Frontend**
-* React.js (Vite)
-* React-Leaflet (OpenStreetMap integration)
-* Framer Motion (Animations)
-* Axios (with custom interceptors)
-
-**Backend**
-* Python 3 & FastAPI
-* SQLAlchemy (ORM) & Alembic (Database Migrations)
-* WebSockets (Real-time bidirectional communication)
-* PyJWT & Passlib (Authentication & Hashing)
-
-## 🚀 Getting Started
-
-### Prerequisites
-* Python 3.10+
-* Node.js v18+
-* PostgreSQL or SQLite (configured via SQLAlchemy)
-
-### Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-Create and activate a virtual environment:
-
-Bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-Install dependencies:
-
-Bash
-pip install -r requirements.txt
-Configure your .env file (see .env.example for required variables like SECRET_KEY and Database URLs).
-
-Run database migrations:
-
-Bash
-alembic upgrade head
-Start the FastAPI server:
-
-Bash
-uvicorn main:app --reload
-Frontend Setup
-Navigate to the frontend directory:
-
-Bash
-cd frontend
-Install dependencies:
-
-Bash
-npm install
-Configure your .env file to point to your backend API:
-
-Code snippet
-VITE_API_BASE_URL=http://localhost:8000
-Start the Vite development server:
-
-Bash
-npm run dev
-🔒 Security & Privacy Notes
-This platform prioritizes user data protection. Mechanic coordinates are strictly localized to active jobs and are completely nullified on the backend once a job transitions to Completed or Cancelled, ensuring privacy. Registration endpoints default strictly to least-privileged user roles to prevent horizontal privilege escalation.
-
-👨‍💻 Author
-Vishal Bisht
+The app is ready for local development and structured for production deployment. The major security fixes are implemented, including hybrid cookie/token auth for mobile deployments, role-based dashboard access, live-location privacy controls, and tests for critical paths.
 

@@ -22,8 +22,9 @@ export default function Login() {
 
     try {
       const res = await api.post("/login", params);
-      login(res.data.user);
-      navigate("/dashboard");
+      const nextUser = res.data.user;
+      login(nextUser);
+      navigate(nextUser?.role === "mechanic" ? "/mechanic-dashboard" : "/user-dashboard");
     } catch (error) {
       console.error(error);
       toast.error("Login failed: " + (error.response?.data?.detail || "Check console for details"));

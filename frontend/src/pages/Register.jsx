@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import api from '../api';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { getApiErrorMessage } from '../utils/errorHandler';
+import { AuthContext } from '../context/auth-context';
 
 const normalizePhone = (phone) => {
   const trimmed = phone.trim();
@@ -29,23 +30,23 @@ export default function Register() {
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/register", {
+      const res = await api.post("/register", {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
         phone: normalizePhone(`${normalizeCountryCode(formData.countryCode)}${formData.phone}`),
+        role: formData.role,
       });
-      toast.success(
-        formData.role === 'mechanic'
-          ? "Account created. Mechanic access requires admin approval."
-          : "Registration successful! Please login."
-      );
-      navigate('/login');
+      const nextUser = res.data.user;
+      login(nextUser);
+      toast.success(formData.role === 'mechanic' ? "Mechanic account created!" : "Account created!");
+      navigate(nextUser?.role === 'mechanic' ? '/mechanic-dashboard' : '/user-dashboard');
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Registration failed"));
     } finally {
@@ -110,7 +111,7 @@ export default function Register() {
             </div>
             {formData.role === 'mechanic' && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    Mechanic access is reviewed by an admin after signup. Your account will start as a user.
+                    Your account will open the mechanic dashboard after signup.
                 </div>
             )}
 

@@ -96,7 +96,7 @@ def register(user: schemas.UserCreate, response: Response, db: Session = Depends
         email=user.email,
         phone=user.phone,
         password_hash=hashed_password,
-        role="user",
+        role=user.role,
         is_available=False,
     )
 
