@@ -103,6 +103,8 @@ def register(user: schemas.UserCreate, response: Response, db: Session = Depends
     
     return {
         "expires_in": settings.access_token_expire_minutes * 60,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "user": user_payload(new_user),
     }
 
@@ -133,6 +135,8 @@ def login(
     set_auth_cookies(response, access_token, refresh_token)
     return {
         "expires_in": settings.access_token_expire_minutes * 60,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "user": user_payload(user),
     }
 
@@ -169,6 +173,8 @@ def refresh_token(
     set_auth_cookies(response, access_token, rotated_refresh_token)
     return {
         "expires_in": settings.access_token_expire_minutes * 60,
+        "access_token": access_token,
+        "refresh_token": rotated_refresh_token,
         "user": user_payload(user),
     }
 
