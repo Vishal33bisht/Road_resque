@@ -29,14 +29,18 @@ logging.basicConfig(
 app = FastAPI(title="Roadside Rescue API")
 
 DEFAULT_CORS_ORIGINS = (
-    "http://localhost:5173,"
-    "http://127.0.0.1:5173,"
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://road-resque.vercel.app"
 )
 
 
 def parse_cors_origins() -> list[str]:
-    return settings.cors_origins
+    origins = settings.cors_origins
+    # Ensure production frontend is always included
+    if "https://road-resque.vercel.app" not in origins:
+        origins.append("https://road-resque.vercel.app")
+    return origins
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
