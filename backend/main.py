@@ -67,9 +67,7 @@ class CsrfHeaderMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CsrfHeaderMiddleware)
-
+# Register CORS middleware first so it can handle preflight requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=parse_cors_origins(),
@@ -77,6 +75,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security and CSRF middlewares run after CORS
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CsrfHeaderMiddleware)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
