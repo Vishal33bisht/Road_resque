@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Roadside Rescue
 
 Roadside Rescue is a full-stack roadside assistance app that connects drivers with mechanics, tracks request status, and shows live mechanic location while a job is actively in progress.
@@ -296,5 +296,3 @@ This platform prioritizes user data protection. Mechanic coordinates are strictl
 👨‍💻 Author
 Vishal Bisht
 
-GitHub Profile
->>>>>>> 23c5f0fc674bee6b9370b6aba4005f643d498e24
