@@ -72,8 +72,8 @@ def clear_auth_cookies(response: Response) -> None:
     )
 
 
-@router.post("/register", response_model=schemas.UserResponse)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@router.post("/register")
+def register(user: schemas.UserCreate, response: Response, db: Session = Depends(get_db)):
     logger.info("New registration attempt: %s", user.email)
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
@@ -93,7 +93,18 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user
+    
+    # Auto-login after registration by setting auth cookies
+    access_token = auth_service.create_access_token(
+        data={"sub": str(new_user.id), "role": new_user.role, "name": new_user.name}
+    )
+    refresh_token = auth_service.create_refresh_token(data={"sub": str(new_user.id)})
+    set_auth_cookies(response, access_token, refresh_token)
+    
+    return {
+        "expires_in": settings.access_token_expire_minutes * 60,
+        "user": user_payload(new_user),
+    }
 
 
 @router.post("/login")
