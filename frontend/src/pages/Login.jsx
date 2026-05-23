@@ -22,8 +22,7 @@ export default function Login() {
 
     try {
       const res = await api.post("/login", params);
-      const currentUser = await api.get("/me");
-      login(currentUser.data || res.data.user);
+      login(res.data.user);
       navigate("/dashboard");
     } catch (error) {
       console.error(error);

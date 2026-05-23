@@ -25,7 +25,7 @@ const sessionExpiredError = (error) => ({
     ...error.response,
     data: {
       ...(error.response?.data || {}),
-      detail: 'Session expired. Please log in again.',
+      detail: 'Could not verify your login session. Please sign in again using the same localhost or 127.0.0.1 address.',
     },
   },
 });
