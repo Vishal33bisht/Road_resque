@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+const getDefaultApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:8000';
+  }
+
+  return `http://${window.location.hostname}:8000`;
+};
+
 const api=axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+    baseURL: import.meta.env.VITE_API_BASE_URL || getDefaultApiBaseUrl(),
     timeout: 10000,
     withCredentials: true,
 });
