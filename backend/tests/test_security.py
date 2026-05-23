@@ -26,7 +26,7 @@ def test_security_headers_are_present():
     assert "default-src 'self'" in response.headers["content-security-policy"]
 
 
-def test_login_uses_short_http_only_access_and_refresh_cookies():
+def test_login_uses_short_http_only_cookies_and_returns_mobile_fallback_tokens():
     client = TestClient(app)
     email = f"user-{uuid4()}@example.com"
     password = "StrongPass1"
@@ -50,8 +50,8 @@ def test_login_uses_short_http_only_access_and_refresh_cookies():
     cookies = SimpleCookie()
     cookies.load(login_response.headers["set-cookie"])
 
-    assert "access_token" not in body
-    assert "refresh_token" not in body
+    assert "access_token" in body
+    assert "refresh_token" in body
     assert "access_token" in cookies
     assert "refresh_token" in cookies
     assert cookies["access_token"]["httponly"]
@@ -67,13 +67,54 @@ def test_login_uses_short_http_only_access_and_refresh_cookies():
     assert body["user"]["email"] == email
 
 
-def test_auth_requires_http_only_access_cookie():
+def test_auth_accepts_bearer_access_token_when_cookies_are_unavailable():
     client = TestClient(app)
-    access = auth_service.create_access_token({"sub": "1", "role": "user", "name": "Test User"})
+    email = f"bearer-user-{uuid4()}@example.com"
+    password = "StrongPass1"
 
-    response = client.get("/my-requests", headers={"Authorization": f"Bearer {access}"})
+    register_response = client.post(
+        "/register",
+        json={
+            "name": "Bearer User",
+            "email": email,
+            "phone": "+911234567893",
+            "password": password,
+            "role": "user",
+        },
+    )
+    assert register_response.status_code == 200
 
-    assert response.status_code == 401
+    access = register_response.json()["access_token"]
+    cookie_free_client = TestClient(app)
+
+    response = cookie_free_client.get("/my-requests", headers={"Authorization": f"Bearer {access}"})
+
+    assert response.status_code == 200
+
+
+def test_refresh_accepts_body_token_when_cookie_is_unavailable():
+    client = TestClient(app)
+    email = f"refresh-user-{uuid4()}@example.com"
+
+    register_response = client.post(
+        "/register",
+        json={
+            "name": "Refresh User",
+            "email": email,
+            "phone": "+911234567894",
+            "password": "StrongPass1",
+            "role": "user",
+        },
+    )
+    assert register_response.status_code == 200
+
+    refresh = register_response.json()["refresh_token"]
+    cookie_free_client = TestClient(app)
+    response = cookie_free_client.post("/refresh", json={"refresh_token": refresh})
+
+    assert response.status_code == 200
+    assert response.json()["access_token"]
+    assert response.json()["refresh_token"]
 
 
 def test_registration_cannot_self_assign_mechanic_role():
@@ -92,8 +133,8 @@ def test_registration_cannot_self_assign_mechanic_role():
     )
 
     assert response.status_code == 200
-    assert response.json()["role"] == "user"
-    assert response.json()["is_available"] is False
+    assert response.json()["user"]["role"] == "user"
+    assert response.json()["user"]["is_available"] is False
 
 
 def test_completed_request_does_not_expose_mechanic_live_coordinates():

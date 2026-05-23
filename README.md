@@ -6,7 +6,7 @@ Roadside Rescue is a full-stack roadside assistance app that connects drivers wi
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-646cff)
 ![Backend](https://img.shields.io/badge/backend-FastAPI-009688)
-![Auth](https://img.shields.io/badge/auth-HttpOnly%20cookies-orange)
+![Auth](https://img.shields.io/badge/auth-Cookies%20%2B%20mobile%20token%20fallback-orange)
 
 ## What It Does
 
@@ -26,8 +26,8 @@ Roadside Rescue is a full-stack roadside assistance app that connects drivers wi
 - Open customer location in maps.
 
 **Security highlights**
-- Access and refresh tokens are stored only in HttpOnly cookies.
-- No JWT is stored in `localStorage` or `sessionStorage`.
+- Access and refresh tokens are set in HttpOnly cookies when the browser accepts cross-site cookies.
+- Deployed/mobile browsers can also use returned JWTs as an Authorization fallback when Vercel and the API are on different domains.
 - Public signup always creates a normal user account.
 - Mechanic role must be granted by trusted admin/database workflow.
 - Mechanic coordinates are hidden for completed/cancelled/rejected/history jobs.
@@ -76,7 +76,7 @@ road-side2/
       pages/                Landing, login, register, user/mechanic dashboards
       context/              Auth context
       utils/                Error helpers
-      api.js                Axios client with cookie credentials
+      api.js                Axios client with cookie credentials and deployed-mobile token fallback
 ```
 
 ## Local Setup
@@ -200,8 +200,8 @@ Also recommended:
 Core endpoints:
 
 - `POST /register` - Creates a normal user account.
-- `POST /login` - Sets HttpOnly access/refresh cookies.
-- `POST /refresh` - Rotates refresh token and issues a new access cookie.
+- `POST /login` - Sets HttpOnly access/refresh cookies and returns fallback tokens.
+- `POST /refresh` - Rotates refresh token and issues a new access cookie/token pair.
 - `POST /logout` - Clears auth cookies.
 - `GET /me` - Returns the current authenticated user.
 - `POST /requests` - Creates a roadside assistance request.
@@ -212,7 +212,7 @@ Core endpoints:
 
 ## Current Status
 
-The app is ready for local development and structured for production deployment. The major security fixes are implemented, including cookie-only auth, role escalation prevention, live-location privacy controls, and tests for critical paths.
+The app is ready for local development and structured for production deployment. The major security fixes are implemented, including hybrid cookie/token auth for mobile deployments, role escalation prevention, live-location privacy controls, and tests for critical paths.
 =======
 Markdown
 # 🚗 Roadside Rescue Platform

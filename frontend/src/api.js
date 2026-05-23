@@ -14,9 +14,22 @@ const api=axios.create({
     withCredentials: true,
 });
 
+const getStoredAccessToken = () => localStorage.getItem('access_token');
+const getStoredRefreshToken = () => localStorage.getItem('refresh_token');
+const setStoredTokens = (accessToken, refreshToken) => {
+  localStorage.setItem('access_token', accessToken);
+  localStorage.setItem('refresh_token', refreshToken);
+};
 const clearStoredTokens = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
+};
+
+const storeTokensFromResponse = (response) => {
+  const { access_token: accessToken, refresh_token: refreshToken } = response.data || {};
+  if (accessToken && refreshToken) {
+    setStoredTokens(accessToken, refreshToken);
+  }
 };
 
 const sessionExpiredError = (error) => ({
@@ -25,24 +38,30 @@ const sessionExpiredError = (error) => ({
     ...error.response,
     data: {
       ...(error.response?.data || {}),
-      detail: 'Could not verify your login session. Please sign in again using the same localhost or 127.0.0.1 address.',
+      detail: 'Could not verify your login session. Please sign in again.',
     },
   },
 });
 
 api.interceptors.request.use((config) => {
   config.headers['X-Requested-With'] = 'XMLHttpRequest';
+
+  const url = config.url || '';
+  const token = getStoredAccessToken();
+  if (token && !url.includes('/refresh')) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
   (response) => {
     const url = response.config?.url || '';
-    const shouldClearStoredTokens =
-      url.includes('/login') || url.includes('/register') || url.includes('/logout');
-
-    if (shouldClearStoredTokens) {
+    if (url.includes('/logout')) {
       clearStoredTokens();
+    } else {
+      storeTokensFromResponse(response);
     }
     return response;
   },
@@ -55,7 +74,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       try {
-        const response = await api.post('/refresh');
+        const refreshToken = getStoredRefreshToken();
+        await api.post('/refresh', refreshToken ? { refresh_token: refreshToken } : undefined);
         return api(originalRequest);
       } catch (refreshError) {
         clearStoredTokens();

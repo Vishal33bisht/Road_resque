@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from config import get_settings
 from database import get_db
+from dependencies import get_current_user
 import models
 import schemas
 from rate_limit import limiter
@@ -55,6 +56,15 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
     )
 
 
+def auth_response(user: models.User, access_token: str, refresh_token: str) -> dict:
+    return {
+        "expires_in": settings.access_token_expire_minutes * 60,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": user_payload(user),
+    }
+
+
 def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(
         key="access_token",
@@ -101,7 +111,7 @@ def register(user: schemas.UserCreate, response: Response, db: Session = Depends
     refresh_token = auth_service.create_refresh_token(data={"sub": str(new_user.id)})
     set_auth_cookies(response, access_token, refresh_token)
     
-    return user_payload(new_user)
+    return auth_response(new_user, access_token, refresh_token)
 
 
 @router.post("/login")
@@ -128,24 +138,23 @@ def login(
     )
     refresh_token = auth_service.create_refresh_token(data={"sub": str(user.id)})
     set_auth_cookies(response, access_token, refresh_token)
-    return {
-        "expires_in": settings.access_token_expire_minutes * 60,
-        "user": user_payload(user),
-    }
+    return auth_response(user, access_token, refresh_token)
 
 
 @router.post("/refresh")
 def refresh_token(
     response: Response,
+    refresh_data: schemas.RefreshRequest | None = None,
     refresh_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
-    if not refresh_token:
+    token = refresh_token or (refresh_data.refresh_token if refresh_data else None)
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
 
     try:
         payload = jwt.decode(
-            refresh_token,
+            token,
             auth_service.SECRET_KEY,
             algorithms=[auth_service.ALGORITHM],
         )
@@ -164,10 +173,7 @@ def refresh_token(
     )
     rotated_refresh_token = auth_service.create_refresh_token(data={"sub": str(user.id)})
     set_auth_cookies(response, access_token, rotated_refresh_token)
-    return {
-        "expires_in": settings.access_token_expire_minutes * 60,
-        "user": user_payload(user),
-    }
+    return auth_response(user, access_token, rotated_refresh_token)
 
 
 @router.post("/logout")
@@ -177,22 +183,5 @@ def logout(response: Response):
 
 
 @router.get("/me")
-def me(access_token: str | None = Cookie(default=None), db: Session = Depends(get_db)):
-    if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = jwt.decode(
-            access_token,
-            auth_service.SECRET_KEY,
-            algorithms=[auth_service.ALGORITHM],
-        )
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        user_id = int(payload.get("sub"))
-    except (jwt.PyJWTError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
-
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user_payload(user)
+def me(current_user: models.User = Depends(get_current_user)):
+    return user_payload(current_user)

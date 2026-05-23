@@ -1,4 +1,4 @@
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, HTTPException, Request
 import jwt
 from sqlalchemy.orm import Session
 
@@ -25,11 +25,28 @@ def get_user_from_token(token: str, db: Session) -> models.User:
 
 
 def get_current_user(
+    request: Request,
     access_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> models.User:
-    token = access_token
-    if not token:
+    tokens: list[str] = []
+    if access_token:
+        tokens.append(access_token)
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        bearer_token = auth_header[7:].strip()
+        if bearer_token and bearer_token not in tokens:
+            tokens.append(bearer_token)
+
+    if not tokens:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    return get_user_from_token(token, db)
+
+    last_error: HTTPException | None = None
+    for token in tokens:
+        try:
+            return get_user_from_token(token, db)
+        except HTTPException as exc:
+            last_error = exc
+
+    raise last_error or HTTPException(status_code=401, detail="Invalid token")

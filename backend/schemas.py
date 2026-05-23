@@ -37,6 +37,11 @@ class UserCreate(BaseModel):
     def validate_password(cls, v):
         return validate_password_strength(v)
 
+
+class RefreshRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
 class RequestCreate(BaseModel):
     vehicle_type: str
     problem_desc: str = Field(..., min_length=10, max_length=500)
