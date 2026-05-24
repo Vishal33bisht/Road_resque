@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AuthContext } from "./auth-context";
-import api from "../api";
+import api, { clearStoredTokens } from "../api";
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }) => {
             await api.post("/logout");
         } catch {
             // Ignore logout network errors; local auth state should still clear.
+            clearStoredTokens();
         }
         setUser(null);
     };

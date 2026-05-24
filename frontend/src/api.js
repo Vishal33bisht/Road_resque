@@ -20,7 +20,7 @@ const setStoredTokens = (accessToken, refreshToken) => {
   localStorage.setItem('access_token', accessToken);
   localStorage.setItem('refresh_token', refreshToken);
 };
-const clearStoredTokens = () => {
+export const clearStoredTokens = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
 };

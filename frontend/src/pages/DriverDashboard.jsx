@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -9,6 +9,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { toast } from 'react-hot-toast';
 import api from '../api';
+import { AuthContext } from '../context/auth-context';
 import './DriverDashboard.css';
 import 'leaflet/dist/leaflet.css';
 
@@ -29,6 +30,7 @@ const RecenterMap = ({ center }) => {
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const { logout } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -198,9 +200,9 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    api.post('/logout').catch(() => {});
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
     toast.success('Logged out successfully');
   };
 

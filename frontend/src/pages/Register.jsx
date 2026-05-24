@@ -1,9 +1,22 @@
 import { useContext, useState } from 'react';
-import api from '../api';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { getApiErrorMessage } from '../utils/errorHandler';
+import {
+  ArrowRight,
+  Car,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Phone,
+  ShieldCheck,
+  User,
+  Wrench,
+} from 'lucide-react';
+import api from '../api';
 import { AuthContext } from '../context/auth-context';
+import { getApiErrorMessage } from '../utils/errorHandler';
+import './AuthPages.css';
 
 const normalizePhone = (phone) => {
   const trimmed = phone.trim();
@@ -21,22 +34,28 @@ export default function Register() {
   const requestedRole = searchParams.get('role');
   const initialRole = requestedRole === 'mechanic' ? 'mechanic' : 'user';
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    countryCode: "+91",
-    phone: "",
-    password: "",
-    role: initialRole
+    name: '',
+    email: '',
+    countryCode: '+91',
+    phone: '',
+    password: '',
+    role: initialRole,
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
+
+  const updateField = (field, value) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await api.post("/register", {
+      const res = await api.post('/register', {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
@@ -45,159 +64,196 @@ export default function Register() {
       });
       const nextUser = res.data.user;
       login(nextUser);
-      toast.success(formData.role === 'mechanic' ? "Mechanic account created!" : "Account created!");
-      navigate(nextUser?.role === 'mechanic' ? '/mechanic-dashboard' : '/user-dashboard');
+      toast.success(formData.role === 'mechanic' ? 'Mechanic account created!' : 'Account created!');
+      navigate(nextUser?.role === 'mechanic' ? '/mechanic-dashboard' : '/user-dashboard', {
+        replace: true,
+      });
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Registration failed"));
+      toast.error(getApiErrorMessage(error, 'Registration failed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Branding (Hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-800 to-blue-600 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute bottom-20 left-20 w-80 h-80 bg-white rounded-full blur-3xl animate-pulse"></div>
+    <main className="auth-shell auth-shell-register">
+      <section className="auth-showcase" aria-label="Roadside Rescue signup overview">
+        <div className="auth-brand">
+          <span className="auth-brand-mark">
+            <Car size={26} />
+          </span>
+          <span>Roadside Rescue</span>
         </div>
-        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-white">
-            <div className="mb-6 bg-white/20 p-6 rounded-full backdrop-blur-md">
-                <span className="text-6xl">🚀</span>
-            </div>
-            <h1 className="text-4xl font-bold mb-4">Join Roadside Rescue</h1>
-            <p className="text-lg text-blue-100 text-center max-w-md">
-                Become part of the fastest growing emergency assistance network. 
-                Whether you drive or fix, we have a spot for you.
-            </p>
-        </div>
-      </div>
 
-      {/* Right Side - Register Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
-        <div className="w-full max-w-md">
-          
-          <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
-            <p className="text-gray-600">Get started in less than a minute</p>
+        <div className="auth-hero-copy">
+          <span className="auth-kicker">Join the assistance network</span>
+          <h1>Create your account and get moving in minutes.</h1>
+          <p>
+            Drivers can request trusted help. Mechanics can receive nearby jobs, update
+            availability, and complete service from the dashboard.
+          </p>
+        </div>
+
+        <div className="auth-role-preview">
+          <div className="auth-preview-row active">
+            <span>
+              <Car size={18} />
+            </span>
+            <div>
+              <strong>Driver dashboard</strong>
+              <small>Request help and track arrival</small>
+            </div>
+          </div>
+          <div className="auth-preview-row">
+            <span>
+              <Wrench size={18} />
+            </span>
+            <div>
+              <strong>Mechanic dashboard</strong>
+              <small>Accept jobs and manage routes</small>
+            </div>
+          </div>
+          <div className="auth-preview-row">
+            <span>
+              <ShieldCheck size={18} />
+            </span>
+            <div>
+              <strong>Secure account</strong>
+              <small>Protected access to service data</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="auth-panel" aria-labelledby="register-title">
+        <div className="auth-card auth-card-wide">
+          <div className="auth-card-header">
+            <span className="auth-card-icon">
+              <User size={22} />
+            </span>
+            <div>
+              <h2 id="register-title">Create account</h2>
+              <p>Choose your role and fill in your details.</p>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* Role Selection Tabs */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-200 rounded-xl mb-6">
-                <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, role: 'user' })}
-                    className={`py-2 text-sm font-bold rounded-lg transition-all ${
-                        formData.role === 'user' 
-                        ? 'bg-white text-blue-600 shadow-sm' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    👤 User
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, role: 'mechanic' })}
-                    className={`py-2 text-sm font-bold rounded-lg transition-all ${
-                        formData.role === 'mechanic' 
-                        ? 'bg-white text-blue-600 shadow-sm' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    🔧 Mechanic
-                </button>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-role-toggle" aria-label="Account role">
+              <button
+                type="button"
+                className={formData.role === 'user' ? 'selected' : ''}
+                onClick={() => updateField('role', 'user')}
+              >
+                <Car size={18} />
+                Driver
+              </button>
+              <button
+                type="button"
+                className={formData.role === 'mechanic' ? 'selected' : ''}
+                onClick={() => updateField('role', 'mechanic')}
+              >
+                <Wrench size={18} />
+                Mechanic
+              </button>
             </div>
-            {formData.role === 'mechanic' && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    Your account will open the mechanic dashboard after signup.
+
+            <label className="auth-field">
+              <span>Full name</span>
+              <div className="auth-input-wrap">
+                <User size={18} />
+                <input
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Your full name"
+                  value={formData.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  required
+                />
+              </div>
+            </label>
+
+            <label className="auth-field">
+              <span>Email address</span>
+              <div className="auth-input-wrap">
+                <Mail size={18} />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  required
+                />
+              </div>
+            </label>
+
+            <div className="auth-field">
+              <span>Phone number</span>
+              <div className="auth-phone-row">
+                <div className="auth-input-wrap auth-country-code">
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    aria-label="Country code"
+                    placeholder="+91"
+                    value={formData.countryCode}
+                    onChange={(e) => updateField('countryCode', e.target.value)}
+                    required
+                  />
                 </div>
-            )}
-
-            {/* Inputs */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input 
-                    type="text" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder=""
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                <div className="auth-input-wrap">
+                  <Phone size={18} />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="Phone number"
+                    value={formData.phone}
+                    onChange={(e) => updateField('phone', e.target.value)}
                     required
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input 
-                    type="email" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder=""
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    required
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <div className="flex gap-2">
-                    <input
-                        type="tel"
-                        inputMode="tel"
-                        className="w-24 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="+91"
-                        aria-label="Country code"
-                        value={formData.countryCode}
-                        onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
-                        required
-                    />
-                    <input
-                        type="tel"
-                        inputMode="tel"
-                        className="flex-1 min-w-0 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Phone number"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        required
-                    />
+                  />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">You can edit the country code before signing up.</p>
+              </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input 
-                    type="password" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder=""
-                    value={formData.password}
-                    minLength={8}
-                    title="Use at least 8 characters with one uppercase letter and one number"
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    required
+            <label className="auth-field">
+              <span>Password</span>
+              <div className="auth-input-wrap">
+                <Lock size={18} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={formData.password}
+                  minLength={8}
+                  title="Use at least 8 characters with one uppercase letter and one number"
+                  onChange={(e) => updateField('password', e.target.value)}
+                  required
                 />
-                <p className="mt-1 text-xs text-gray-500">At least 8 characters with one uppercase letter and one number.</p>
-            </div>
+                <button
+                  className="auth-icon-button"
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <small>Use at least 8 characters with one uppercase letter and one number.</small>
+            </label>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-all mt-4 disabled:opacity-50"
-            >
-              {loading ? "Creating Account..." : "Sign Up"}
+            <button className="auth-submit" type="submit" disabled={loading}>
+              <span>{loading ? 'Creating account...' : 'Create account'}</span>
+              <ArrowRight size={19} />
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="text-blue-600 font-semibold hover:underline">
-              Log in
-            </Link>
+          <p className="auth-switch">
+            Already registered?
+            <Link to="/login">Sign in</Link>
           </p>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
