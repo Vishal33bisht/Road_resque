@@ -12,7 +12,7 @@ from database import engine
 import models
 from rate_limit import limiter
 from routers import auth, health, mechanic, requests
-
+from routers.health import router as health_router
 settings = get_settings()
 
 models.Base.metadata.create_all(bind=engine)
@@ -27,6 +27,8 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Roadside Rescue API")
+
+app.include_router(health_router)
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
