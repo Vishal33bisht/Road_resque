@@ -11,7 +11,7 @@ router = APIRouter(tags=["health"])
 def read_root():
     return {"message": "Welcome to roadside rescue API"}
 
-@router.get("/health")
+@router.api_route("/health",methods=["GET","HEAD"])
 def health_check():
     return {"status":"ok"}
 
