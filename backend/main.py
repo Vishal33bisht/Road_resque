@@ -28,7 +28,9 @@ logging.basicConfig(
 
 app = FastAPI(title="Roadside Rescue API")
 
-app.include_router(health_router)
+app.include_router(health_router, prefix="/api/health", tags=["health"])
+
+
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
